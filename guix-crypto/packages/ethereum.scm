@@ -88,8 +88,8 @@ aD1XJM7Aqq5KSSLvJMap9uHNO3WQXuNOoeLsSg==
                  commit-hash))
 
 (define-public geth-binary
-  (let ((version "1.10.13")
-        (commit-hash "7a0c19f8"))
+  (let ((version "1.10.15")
+        (commit-hash "8be800ff")) ; first 8 digits of the tagged commit's hash
     (package
       (name "geth-binary")
       (version version)
@@ -165,15 +165,18 @@ aD1XJM7Aqq5KSSLvJMap9uHNO3WQXuNOoeLsSg==
                    ".tar.gz"))
              (sha256
               (match (%current-system)
+                ;; To update the hashes go to https://geth.ethereum.org/downloads/
+                ;; then download the alltools files for the archs, and then run
+                ;; guix hash geth-linux-amd64-1.10.15-8be800ff.tar.gz
                 ("x86_64-linux"
                  (base32
-                  "0v7bc6gmwz7dky5dcmkivnkiwvm3c6fziw5z4kr62pn5mc86pawk"))
+                  "1i6v7a9xj3a5cg596acw3y5834wfsrxf40wna6p62a5h7vmf940y"))
                 ("i686-linux"
                  (base32
-                  "1wlx782r3hjb23dydrwzzwg37mhywhkgrpirqw6kmlzpk8fc5alz"))
+                  "12a6qshzp34pvagspi6a5kdwhsg85cmckn279gcb190s5pbrcyf7"))
                 ("aarch64-linux"
                  (base32
-                  "1wi4fgj7r1vgffdrxy2yp8c28ph8z21c9q9shipav10606rjrici"))
+                  "0r3msm9kngqdnx2apgi69sx67y7d4s9izf6jjvzrfdi9v8fi3qpl"))
                 (_ (unsupported-arch name (%current-system)))))))
          ("signature"
           ,(origin
@@ -186,13 +189,13 @@ aD1XJM7Aqq5KSSLvJMap9uHNO3WQXuNOoeLsSg==
               (match (%current-system)
                 ("x86_64-linux"
                  (base32
-                  "0gp94l4s0m21ldp7i7n6x73cmpq2m57a24pq5lkn5v8a6csn2m8d"))
+                  "0c7df9jik20by6qrwfayyk8jj5car0z6ybs717hh4jf6wv8wnam0"))
                 ("i686-linux"
                  (base32
-                  "160vxwxk9jhjip8lhacxbgiswg17brbcl7h0fdljjgn7smcmn0gb"))
+                  "1mmxf1bj5sxjqxphnsnm2w1yj1ayrxjbwsyzxzf4nbg8yx5ihqpv"))
                 ("aarch64-linux"
                  (base32
-                  "0knlk1gbfyzjlw4dnd91y9sysqsgvsxwzl33cvn3sbr0frirdg1a"))
+                  "0wyd7k9cy8kjm9xxl3yj4f49hfxagrimijviq32cbgshggjv6jbg"))
                 (_ (unsupported-arch name (%current-system)))))))))
 
       (supported-systems '("x86_64-linux" "i686-linux" "aarch64-linux"))
