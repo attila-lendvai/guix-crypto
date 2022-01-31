@@ -220,3 +220,36 @@ aD1XJM7Aqq5KSSLvJMap9uHNO3WQXuNOoeLsSg==
 applications that run exactly as programmed without possibility of downtime,
 censorship, fraud or third party interference.")
       (license license:gpl3+))))
+
+(define-public openethereum-binary
+  (let ((version "3.3.3"))
+    (package
+      (name "openethereum-binary")
+      (version version)
+      (source
+       (origin
+         (method url-fetch)
+         (uri (github-download-link "openethereum" "openethereum" version
+                                    (string-append "openethereum-linux-v"
+                                                   version ".zip")))
+         (sha256
+          (match (%current-system)
+            ("x86_64-linux"
+             (base32
+              "1jdrralm77j3vkp5akwfv39p9sl6njb5h85mizzcx9x5dl562r3m"))
+            (_ (unsupported-arch name (%current-system)))))))
+      (build-system binary-build-system)
+      (arguments
+       `(#:install-plan `(("openethereum" "bin/"))
+         #:strip-binaries? #false          ; The less we modify, the better.
+         #:patchelf-plan `(("openethereum" ("gcc" "glibc")))))
+      (native-inputs (list unzip patchelf))
+      (inputs (list (list gcc "lib") glibc))
+      (supported-systems '("x86_64-linux"))
+      (home-page "https://openethereum.org/")
+      (synopsis "Fast and feature-rich Ethereum client")
+      (description
+       "OpenEthereum’s goal is to be the fastest, lightest, and most secure
+Ethereum client.  We are developing OpenEthereum using the cutting-edge Rust
+programming language.")
+      (license license:gpl3+))))
