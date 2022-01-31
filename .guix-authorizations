@@ -1,0 +1,8 @@
+;;; -*- mode: scheme; -*-
+
+(authorizations
+ (version 0)
+ ;; This is the list of OpenPGP keys currently authorized to sign
+ ;; commits in this repository.
+ (("69DA 8D74 F179 7AD6 7806  EE06 FEFA 9FE5 5CF6 E3CD"
+   (name "Attila Lendvai"))))
