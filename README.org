@@ -1,0 +1,56 @@
+# -*- mode: org; coding: utf-8-unix  -*-
+
+* What
+This is a package repository to be used with the [[https://www.gnu.org/software/guix/][GNU Guix]] package
+manager. It contains crypto and blockchain related packages that are
+not eligible for Guix proper.
+
+* Status
+For now this channel is still *in the process of being established*,
+and it will most probably receive a few more =git push -f='s until
+things settles down.
+
+If you add it to your Guix in this early phase, then you may need to
+do a `guix pull --allow-downgrades`, and/or even update the channel's
+introduction in your local channel config.
+
+* Where
+The project's [[https://github.com/attila-lendvai/guix-crypto][github page]] is the primary communication channel.
+
+* How
+This git repository is a Guix channel that can be added to your
+=channels.scm= files by inserting the following /channel
+introduction/, typically to =/etc/guix/channels.scm=:
+
+#+BEGIN_SRC scheme
+  (channel
+   (name 'crypto) ; short name for nicer guix pull output
+   (url "https://github.com/attila-lendvai/guix-crypto.git")
+   (branch "main")
+   (introduction
+    (make-channel-introduction
+     "a6a78768c2f9d0f0e659b0788001e37e23dc26e4"
+     (openpgp-fingerprint
+      "69DA 8D74 F179 7AD6 7806  EE06 FEFA 9FE5 5CF6 E3CD"))))
+#+END_SRC
+
+For the time being, this channel depends on [[https://gitlab.com/nonguix/nonguix][Nonguix]] (for
+=binary-build-system=), therefore pulling from this channel will also
+pull the Nonguix channel.
+
+* Why
+[[https://guix.gnu.org/][Guix proper]] doesn't accept binary packages, and compiling
+crypto/blockchain related projects is not trivial. Any mistake at
+compilation (e.g. by using a different version of a dependency) may
+introduce bugs into the final binary file that could result in losing
+money.
+
+Ideally, these mission critical projects would all be /reproducible
+build/, even across OS installations. Then we could have source based
+packages in Guix proper to build them, and then authenticate the
+resulting binaries by comparing them to the officially released
+binaries, and their singatures.
+
+Until this ideal worlds is reached, this channel may hold binary Guix
+packages that download, authenticate, and patch the official binary
+releases to run on Guix.
