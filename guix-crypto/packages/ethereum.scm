@@ -30,6 +30,7 @@
   #:use-module (gnu packages gcc)
   #:use-module (gnu packages gnupg)
   #:use-module (nonguix build-system binary)
+  #:use-module (guix-crypto utils)
   #:use-module (ice-9 match))
 
 ;; As per https://geth.ethereum.org/downloads/#openpgp_signatures
@@ -79,23 +80,6 @@ aD1XJM7Aqq5KSSLvJMap9uHNO3WQXuNOoeLsSg==
 -----END PGP PUBLIC KEY BLOCK-----")
 
 (define +geth-url-base+ "https://gethstore.blob.core.windows.net/builds/")
-
-(define (unsupported-arch package-name system)
-  (raise (formatted-message
-          (G_ "The package '~a' does not support the Guix system '~a'")
-          package-name system)))
-
-(define (guix-system-name->go-system-name package-name system)
-  (match system
-    ("x86_64-linux"      "linux-amd64")
-    ("i686-linux"        "linux-386")
-    ("aarch64-linux"     "linux-arm64")
-    (_ (unsupported-arch package-name system))))
-
-(define* (github-download-link org-name repo-name version file-name)
-  (string-append
-   "https://github.com/" org-name "/" repo-name "/releases/download/"
-   "v" version "/" file-name))
 
 (define (geth-directory system version commit-hash)
   (string-append "geth-alltools-"
