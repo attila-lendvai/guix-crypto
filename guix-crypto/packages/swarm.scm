@@ -34,7 +34,7 @@
   #:use-module (ice-9 match))
 
 (define-public bee-binary
-  (let ((version "1.4.0"))
+  (let ((version "1.4.1"))
     (package
       (name "bee-binary")
       (version version)
@@ -60,16 +60,18 @@
                                   (guix-system-name->go-system-name
                                    name (%current-system)))))
              (sha256
+              ;; To update these go to https://github.com/ethersphere/bee/releases/
+              ;; then download the relevant files, and then `guix hash` them.
               (match (%current-system)
                 ("x86_64-linux"
                  (base32
-                  "1idvxznxw21wpwqc3fz27dxk7s00gqbpfiv9rfink3vkrsab7gzi"))
+                  "0lhnq97ql2xisrzhwysygf2skvw43vhpy8cwn5xv5isrmjsdfqsm"))
                 ("i686-linux"
                  (base32
-                  "0pbs0hmk0qclk415f3v6ijkk4ifdp7msq6qpcsyfp9m903irzs64"))
+                  "0ap9aivv7lzqng5z3zl5j5x0qxph5zpirz0afwkb3ikwn9g4p6n2"))
                 ("aarch64-linux"
                  (base32
-                  "0m41rilm5vxqf3ybr1q8mj2v5pz335crgk8fy19qjhzigv83k4ak"))
+                  "1rl5msprdwapjs4gfx83f58dhj0zs1k5av8q4d9mrf7i7gi85sdw"))
                 (_ (unsupported-arch name (%current-system)))))))))
 
       (supported-systems '("x86_64-linux" "i686-linux" "aarch64-linux"))
