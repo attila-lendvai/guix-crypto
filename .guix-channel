@@ -5,6 +5,7 @@
  ;;(news-file "news.txt")
  (keyring-reference "keyring") ; git branch holding the authorized PGP keys
  (url "https://github.com/attila-lendvai/guix-crypto.git") ; the primary URL
+ (directory "src")
  (dependencies
   (channel
    ;; Note that channel names here must be without quotes for the
