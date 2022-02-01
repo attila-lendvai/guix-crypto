@@ -94,17 +94,17 @@ Bee node's Shepherd service instance; i.e. here you can specify extra \
 dependencies for the start order of the services, e.g. if you are running \
 a local Gnosis chain node instance, then you can add its name here.")
   ;; Users and groups
-  (bee-user              (maybe-string)
+  (bee-user              (maybe-string 'disabled)
                          "Unix user for the Bee processes in this swarm.")
-  (bee-user-id           (maybe-non-negative-integer)
+  (bee-user-id           (maybe-non-negative-integer 'disabled)
                          "Unix uid for @code{bee-user}.")
-  (clef-user             (maybe-string)
+  (clef-user             (maybe-string 'disabled)
                          "Unix user for the clef process in this swarm.")
-  (clef-user-id          (maybe-non-negative-integer)
+  (clef-user-id          (maybe-non-negative-integer 'disabled)
                          "Unix uid for @code{clef-user}.")
-  (swarm-group           (maybe-string)
+  (swarm-group           (maybe-string 'disabled)
                          "Unix group for the users in this swarm.")
-  (swarm-group-id        (maybe-non-negative-integer)
+  (swarm-group-id        (maybe-non-negative-integer 'disabled)
                          "Unix gid for @code{swarm-group}.")
   ;; Swarm config
   (swarm                 (swarm-name 'mainnet)
@@ -113,20 +113,20 @@ a local Gnosis chain node instance, then you can add its name here.")
   (clef-signer-enable    (boolean #true)
                          "Whether to connect to a clef instance, or the \
 Bee node should be doing its own Ethereum key management.")
-  (clef-chain-id         (maybe-non-negative-integer)
+  (clef-chain-id         (maybe-non-negative-integer 'disabled)
                          "Blockchain ID for clef.")
   (node-count            (non-negative-integer 1)
                          "How many Bee nodes should be started.")
   ;; defaults to: 1600 for mainnet, 1900 for testnet
-  (p2p-port-base         (maybe-non-negative-integer)
+  (p2p-port-base         (maybe-non-negative-integer 'disabled)
                          "Base number for the p2p ports of the Bee nodes. \
 Defaults to 1600 for @code{mainnet} and 1900 for @code{testnet}, otherwise \
 it must be specified.")
-  (api-port-base         (maybe-non-negative-integer)
+  (api-port-base         (maybe-non-negative-integer 'disabled)
                          "Base number for the api ports of the Bee nodes. \
 Defaults to 1700 for @code{mainnet} and 2000 for @code{testnet}, otherwise \
 it must be specified.")
-  (debug-api-port-base   (maybe-non-negative-integer)
+  (debug-api-port-base   (maybe-non-negative-integer 'disabled)
                          "Base number for the debug api ports of the Bee \
 nodes. Defaults to 1800 for @code{mainnet} and 2100 for @code{testnet}, \
 otherwise it must be specified.")
@@ -140,11 +140,11 @@ symbols: @code{'silent}, @code{'error}, @code{'warn}, @code{'info}, \
 @code{'debug}, @code{'trace}.")
   (full-node             (boolean #true) "")
   (swap-endpoint         (string) "A blockchain node endpoint to connect to.")
-  (network-id            (maybe-non-negative-integer) "Defaults to @code{1} for \
+  (network-id            (maybe-non-negative-integer 'disabled) "Defaults to @code{1} for \
 @code{mainnet}, and @code{10} for @code{testnet}; otherwise it must be \
 specified.")
-  (mainnet               (maybe-boolean) "")
-  (extra-bee-config      (maybe-string) "A string that will be appended as-is \
+  (mainnet               (maybe-boolean 'disabled) "")
+  (extra-bee-config      (maybe-string 'disabled) "A string that will be appended as-is \
 to the end of the generated @code{bee.yml} files.")
   (no-serialization))
 
