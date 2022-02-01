@@ -88,37 +88,50 @@
         (shepherd-service
          (documentation "Openethereum node for the xDai chain.")
          (provision '(xdai-mainnet))
-         (requirement `(networking file-systems ,(clef-service-name 'mainnet)))
+         (requirement '(networking file-systems))
+         (modules (append '((guix-crypto utils))
+                          %default-modules))
          (start
-          #~(lambda args
-              (mkdir-p "/var/lib/swarm/mainnet/xdai")
-              (chmod "/var/lib/swarm/mainnet/xdai" #o2770)
-              (for-each (lambda (dir)
-                          (invoke #$(file-append coreutils "/bin/chgrp")
-                                  "-R" "swarm-mainnet" dir))
-                        '("/var/log/swarm/mainnet/"
-                          "/var/lib/swarm/mainnet/"))
-              (let* ((ipc-file #$+mainnet-xdai-ipc-file+)
-                     (forkexec
-                      (make-forkexec-constructor
-                       (list #$(file-append openethereum-binary "/bin/openethereum")
-                             "--chain=xdai"
-                             "--no-ws"
-                             "--no-jsonrpc"
-                             "--base-path=/var/lib/swarm/mainnet/xdai"
-                             "--ipc-path" ipc-file)
-                       #:user "xdai"
-                       #:group "swarm-mainnet"
-                       #:log-file "/var/log/swarm/mainnet/xdai.log"
-                       #:directory "/var/lib/swarm/mainnet/xdai")))
-                (false-if-exception
-                 (delete-file ipc-file))
-                (let ((pid (apply forkexec args)))
-                  (while (not (file-exists? ipc-file))
-                    (format #t "Waiting for the IPC file ~S to show up.~%" ipc-file)
-                    (sleep 1))
-                  (chmod ipc-file #o660)
-                  pid))))
+          ;; TODO this WITH-IMPORTED-MODULES shouldn't be needed
+          ;; here. adding a module above to the 'modules field of the
+          ;; service results in getting imported into the gexps (?),
+          ;; but without the w-i-m the module itself is not available.
+          ;; shouldn't the 'modules field of the service take care of
+          ;; that, too?
+          (with-imported-modules '((guix-crypto utils))
+            #~(lambda args
+                (setenv "PATH" #$(file-append coreutils "/bin"))
+                (ensure-directories #f "swarm-mainnet" #o2770
+                                    "/var/log/swarm/mainnet"
+                                    "/var/lib/swarm/mainnet"
+                                    "/var/lib/swarm/mainnet/xdai")
+                (chown-r #f "swarm-mainnet"
+                         "/var/log/swarm/mainnet/"
+                         "/var/lib/swarm/mainnet/")
+                (let* ((ipc-file #$+mainnet-xdai-ipc-file+)
+                       (forkexec
+                        (make-forkexec-constructor
+                         (list #$(file-append openethereum-binary "/bin/openethereum")
+                               "--chain=xdai"
+                               "--no-ws"
+                               "--no-jsonrpc"
+                               "--base-path=/var/lib/swarm/mainnet/xdai"
+                               "--ipc-path" ipc-file)
+                         #:user "xdai"
+                         #:group "swarm-mainnet"
+                         #:log-file "/var/log/swarm/mainnet/xdai.log"
+                         #:directory "/var/lib/swarm/mainnet/xdai"
+                         #:environment-variables
+                         (list (string-append "PATH=" #$coreutils)
+                               "LC_ALL=en_US.UTF-8"))))
+                  (false-if-exception
+                   (delete-file ipc-file))
+                  (let ((pid (apply forkexec args)))
+                    (while (not (file-exists? ipc-file))
+                      (format #t "Waiting for the IPC file ~S to show up.~%" ipc-file)
+                      (sleep 1))
+                    (chmod ipc-file #o660)
+                    pid)))))
          (stop #~(make-kill-destructor)))))
       %base-services))))
 

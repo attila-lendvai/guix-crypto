@@ -279,12 +279,14 @@ specify the following configuration values: ~{~A, ~}.")
 (define-syntax-rule (with-swarm-gexp-modules body ...)
   (with-imported-modules (source-module-closure
                           '((gnu build shepherd)
+                            (guix-crypto utils)
                             (guix-crypto services swarm-utils))
                           #:select? swarm-module-filter)
     body ...))
 
 (define (swarm-default-service-modules)
   (append '((gnu build shepherd)
+            (guix-crypto utils)
             (guix-crypto services swarm-utils)
             (srfi srfi-1)
             (srfi srfi-19)
@@ -442,24 +444,6 @@ specify the following configuration values: ~{~A, ~}.")
             (make-shepherd-service/bee bee-index config))
           (iota node-count)))))
 
-(define (ensure-password-file-exists-gexp password-file pw)
-  #~(let ((password-file #$password-file))
-      (log.dribble "ENSURE-PASSWORD-FILE-EXISTS-GEXP for ~S" password-file)
-      (if (file-exists? password-file)
-          (chown password-file (passwd:uid #$pw) (passwd:gid #$pw))
-          (let ((cmd (string-append
-                      "< /dev/urandom " tr
-                      " -dc _A-Z-a-z-0-9 2> /dev/null | " head
-                      " -c32 >"
-                      password-file)))
-            (log.debug "Generating password file ~S" password-file)
-            (invoke-as-user
-             #$pw
-             (lambda ()
-               (unless (zero? (system* bash "-c" cmd))
-                 (error "Failed to generate password file" password-file))))
-            (chmod password-file #o400)))))
-
 (define (upstream-bee-clef-file relative-path)
   (let ((bee-clef-git
          (let ((commit "v0.9.0"))
@@ -533,7 +517,7 @@ EOF
           (mkdir+chown-r #$(clef-keystore-directory swarm)
                          #o700 clef-user-id clef-group-id)
 
-          #$(ensure-password-file-exists-gexp #~clef-pwd-file #~clef-pw)
+          (ensure-password-file clef-pwd-file clef-pw)
 
           (log.debug "Clef activation ensured the password and the keystore")
 
@@ -584,8 +568,7 @@ EOF")))
 
         (mkdir+chown-r data-dir)
 
-        #$(ensure-password-file-exists-gexp (bee-password-file swarm)
-                                            #~bee-pw)
+        (ensure-password-file #$(bee-password-file swarm) bee-pw)
 
         ;; When first started, call `bee init` for this bee instance.
         (unless (file-exists? libp2p-key)
@@ -614,21 +597,16 @@ number of times, in any random moment."
              (bee-group-id  (passwd:gid bee-pw))
              (bee-chown-spec (format #f "~A:~A" bee-user-id bee-group-id)))
 
-        (format #t "SWARM-SERVICE-GEXP is about to bind *LOG-DIRECTORY* on Guile ~S~%" (version))
-        ;; TODO delme
-        ;;(set! *log-directory* (make-parameter (default-log-directory swarm)))
-        ;; (parameterize ()
-        ;;   (format #t "*LOG-DIRECTORY* before binding is: ")
-        ;;   (format #t "~S~%" (*log-directory*)))
+        ;;(format #t "SWARM-SERVICE-GEXP is about to bind *LOG-DIRECTORY* on Guile ~S~%" (version))
         (parameterize ((*log-directory* (default-log-directory swarm)))
-          (format #t "SWARM-SERVICE-GEXP bound *LOG-DIRECTORY* to ~S~%" (*log-directory*))
+          ;;(format #t "SWARM-SERVICE-GEXP bound *LOG-DIRECTORY* to ~S~%" (*log-directory*))
           ;; so that we can already invoke stuff before the fork+exec
           (setenv "PATH" path)
 
-          ;; TODO move as much of this as possible into swarm-utils.scm,
-          ;; including ensure-password-file-exists-gexp and friends. The
-          ;; headache is that those functions cannot refer to store paths
-          ;; knowing only the package objects, or i don't know how.
+          ;; TODO move as much of this as possible into
+          ;; swarm-utils.scm. The headache is that those functions
+          ;; cannot refer to store paths knowing only the package
+          ;; objects, or i don't know how.
 
           (define* (mkdir* dir #:optional (mode #o2770) ; group sticky
                            (user-id bee-user-id) (group-id bee-group-id))
@@ -639,7 +617,7 @@ number of times, in any random moment."
           (define* (mkdir+chown-r dir #:optional (mode #o2770) ; group sticky
                                   (user-id bee-user-id) (group-id bee-group-id))
             (mkdir*  dir mode user-id group-id)
-            (chown-r dir      user-id group-id))
+            (chown-r user-id group-id dir))
 
           (define (invoke-as-bee-user thunk)
             (log.dribble "INVOKE-AS-BEE-USER called")

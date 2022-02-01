@@ -16,6 +16,7 @@
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (guix-crypto packages swarm)
+  #:use-module (guix-crypto package-utils)
   #:use-module (guix diagnostics)
   #:use-module (guix ui)
   #:use-module (guix download)
@@ -30,7 +31,6 @@
   #:use-module (gnu packages gcc)
   #:use-module (gnu packages gnupg)
   #:use-module (nonguix build-system binary)
-  #:use-module (guix-crypto utils)
   #:use-module (ice-9 match))
 
 (define-public bee-binary
