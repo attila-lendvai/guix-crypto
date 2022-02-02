@@ -106,7 +106,7 @@
                 (cute invoke "chgrp" "-R" (format #f "~A" gid) <>))
             dirs))
 
-(define-public (ensure-password-file password-file #:optional (uid #f) (gid #f))
+(define-public (ensure-password-file password-file uid gid)
   (log.dribble "ENSURE-PASSWORD-FILE-EXISTS for ~S" password-file)
   (unless (file-exists? password-file)
     (log.debug "Generating password file ~S" password-file)
