@@ -468,8 +468,7 @@ specify the following configuration values: ~{~A, ~}.")
       #~(let* ((clef-pwd-file #$(clef-password-file swarm))
                (clef-pw       (getpwnam #$clef-user))
                (clef-user-id  (passwd:uid clef-pw))
-               (clef-group-id (passwd:gid clef-pw))
-               (clef-chown-spec (format #f "~A:~A" clef-user-id clef-group-id)))
+               (clef-group-id (passwd:gid clef-pw)))
 
           (log.debug "Clef activation started")
 
@@ -517,7 +516,7 @@ EOF
           (mkdir+chown-r #$(clef-keystore-directory swarm)
                          #o700 clef-user-id clef-group-id)
 
-          (ensure-password-file clef-pwd-file clef-pw)
+          (ensure-password-file clef-pwd-file clef-user-id clef-group-id)
 
           (log.debug "Clef activation ensured the password and the keystore")
 
@@ -568,7 +567,7 @@ EOF")))
 
         (mkdir+chown-r data-dir)
 
-        (ensure-password-file #$(bee-password-file swarm) bee-pw)
+        (ensure-password-file #$(bee-password-file swarm) bee-user-id bee-group-id)
 
         ;; When first started, call `bee init` for this bee instance.
         (unless (file-exists? libp2p-key)
@@ -594,8 +593,7 @@ number of times, in any random moment."
              (chown-bin     #$(file-append coreutils "/bin/chown"))
              (bee-pw        (getpwnam #$bee-user))
              (bee-user-id   (passwd:uid bee-pw))
-             (bee-group-id  (passwd:gid bee-pw))
-             (bee-chown-spec (format #f "~A:~A" bee-user-id bee-group-id)))
+             (bee-group-id  (passwd:gid bee-pw)))
 
         ;;(format #t "SWARM-SERVICE-GEXP is about to bind *LOG-DIRECTORY* on Guile ~S~%" (version))
         (parameterize ((*log-directory* (default-log-directory swarm)))

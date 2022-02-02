@@ -106,7 +106,7 @@
                 (cute invoke "chgrp" "-R" (format #f "~A" gid) <>))
             dirs))
 
-(define-public (ensure-password-file password-file pw)
+(define-public (ensure-password-file password-file #:optional (uid #f) (gid #f))
   (log.dribble "ENSURE-PASSWORD-FILE-EXISTS for ~S" password-file)
   (unless (file-exists? password-file)
     (log.debug "Generating password file ~S" password-file)
@@ -116,7 +116,7 @@
       (unless (zero? (system cmd))
         (error "Failed to generate password file" password-file))
       (chmod password-file #o400)))
-  (chown password-file (passwd:uid pw) (passwd:gid pw)))
+  (chown password-file (or uid -1) (or gid -1)))
 
 (define-public (ensure-directories owner group permissions . directories)
   (let ((uid (if (string? owner)
