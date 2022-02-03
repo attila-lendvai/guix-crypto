@@ -21,13 +21,28 @@
   ;; 3.0.6). Prior to that it was only in (scheme base).
   #:use-module (guix build utils)
   #:use-module ((scheme base) #:select (call-with-port))
+  #:use-module (system repl error-handling) ; from Guile
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-19)
   #:use-module (srfi srfi-26)
+  #:use-module (srfi srfi-71)
   #:use-module (ice-9 match)
   #:use-module (ice-9 ports)
   #:use-module (ice-9 textual-ports)
-  #:use-module (ice-9 format))
+  #:use-module (ice-9 format)
+  #:export ; Also note the extensive use of DEFINE-PUBLIC below
+  (define-public*))
+
+(define-syntax define-public*
+  (syntax-rules ()
+    ((_ (name . args) . body)
+     (begin
+       (define* (name . args) . body)
+       (export name)))
+    ((_ name val)
+     (begin
+       (define* name val)
+       (export name)))))
 
 ;;;
 ;;; Logging
@@ -48,12 +63,18 @@
 (define-public (log.debug format-string . args)
   ;; WITH-OUTPUT-TO-FILE doesn't work here, because we need to
   ;; append, and it overwrites.
-  (call-with-port (open-file (service-log-filename) "a")
-                  (lambda (port)
-                    (display (date->string (current-date) "~5") port)
-                    (display #\space port)
-                    (apply format port format-string args)
-                    (newline port)))
+  (call-with-error-handling
+   (lambda ()
+     (call-with-port (open-file (service-log-filename) "a")
+                     (lambda (port)
+                       (display (date->string (current-date) "~5") port)
+                       (display #\space port)
+                       (apply format port format-string args)
+                       (newline port))))
+   #:on-error
+   (lambda args
+     (format (current-error-port)
+             "An error from inside the logging infrastructure is being ignored.")))
   (values))
 
 (define-public (log.dribble . args)
@@ -107,7 +128,7 @@
             dirs))
 
 (define-public (ensure-password-file password-file uid gid)
-  (log.dribble "ENSURE-PASSWORD-FILE-EXISTS for ~S" password-file)
+  (log.dribble "ENSURE-PASSWORD-FILE for ~S" password-file)
   (unless (file-exists? password-file)
     (log.debug "Generating password file ~S" password-file)
     (let ((cmd (string-append
@@ -132,3 +153,8 @@
          (chmod dir permissions))
        (chown dir (or uid -1) (or gid -1)))
      directories)))
+
+(define-public (get-monotonic-time)
+  ;; TODO maybe this should return a float?
+  (/ (get-internal-real-time)
+     internal-time-units-per-second))

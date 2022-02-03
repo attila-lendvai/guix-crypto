@@ -23,7 +23,6 @@
   #:use-module (guix-crypto packages ethereum)
   #:use-module (guix-crypto packages swarm)
   #:use-module (guix-crypto services swarm)
-  #:use-module (guix-crypto services swarm-utils)
   #:use-module (gnu tests)
   #:use-module (gnu system)
   #:use-module (gnu system shadow)
@@ -89,7 +88,8 @@
          (documentation "Openethereum node for the xDai chain.")
          (provision '(xdai-mainnet))
          (requirement '(networking file-systems))
-         (modules (append '((guix-crypto utils))
+         (modules (append '((guix-crypto utils)
+                            (guix-crypto service-utils))
                           %default-modules))
          (start
           ;; TODO this WITH-IMPORTED-MODULES shouldn't be needed
@@ -98,7 +98,8 @@
           ;; but without the w-i-m the module itself is not available.
           ;; shouldn't the 'modules field of the service take care of
           ;; that, too?
-          (with-imported-modules '((guix-crypto utils))
+          (with-imported-modules '((guix-crypto utils)
+                                   (guix-crypto service-utils))
             #~(lambda args
                 (setenv "PATH" #$(file-append coreutils "/bin"))
                 (ensure-directories #f "swarm-mainnet" #o2770
@@ -108,30 +109,28 @@
                 (chown-r #f "swarm-mainnet"
                          "/var/log/swarm/mainnet/"
                          "/var/lib/swarm/mainnet/")
-                (let* ((ipc-file #$+mainnet-xdai-ipc-file+)
-                       (forkexec
-                        (make-forkexec-constructor
-                         (list #$(file-append openethereum-binary "/bin/openethereum")
-                               "--chain=xdai"
-                               "--no-ws"
-                               "--no-jsonrpc"
-                               "--base-path=/var/lib/swarm/mainnet/xdai"
-                               "--ipc-path" ipc-file)
-                         #:user "xdai"
-                         #:group "swarm-mainnet"
-                         #:log-file "/var/log/swarm/mainnet/xdai.log"
-                         #:directory "/var/lib/swarm/mainnet/xdai"
-                         #:environment-variables
-                         (list (string-append "PATH=" #$coreutils)
-                               "LC_ALL=en_US.UTF-8"))))
-                  (false-if-exception
-                   (delete-file ipc-file))
-                  (let ((pid (apply forkexec args)))
-                    (while (not (file-exists? ipc-file))
-                      (format #t "Waiting for the IPC file ~S to show up.~%" ipc-file)
-                      (sleep 1))
-                    (chmod ipc-file #o660)
-                    pid)))))
+                (parameterize ((*log-directory* "/tmp/")) ;; TODO
+                  (let* ((ipc-file #$+mainnet-xdai-ipc-file+)
+                         (forkexec
+                          (make-forkexec-constructor
+                           (list #$(file-append openethereum-binary "/bin/openethereum")
+                                 "--chain=xdai"
+                                 "--scale-verifiers"
+                                 "--warp-barrier=20420000"
+                                 "--no-ws"
+                                 "--no-jsonrpc"
+                                 "--base-path=/var/lib/swarm/mainnet/xdai"
+                                 "--ipc-path" ipc-file)
+                           #:user "xdai"
+                           #:group "swarm-mainnet"
+                           #:log-file "/var/log/swarm/mainnet/xdai.log"
+                           #:directory "/var/lib/swarm/mainnet/xdai"
+                           #:environment-variables
+                           (list (string-append "PATH=" #$coreutils)
+                                 "LC_ALL=en_US.UTF-8"))))
+                    (let ((pid (apply forkexec args)))
+                      (ensure-ipc-file-permissions pid ipc-file)
+                      pid))))))
          (stop #~(make-kill-destructor)))))
       %base-services))))
 

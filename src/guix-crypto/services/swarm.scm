@@ -16,6 +16,7 @@
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (guix-crypto services swarm)
+  #:use-module (guix-crypto service-utils)
   #:use-module (guix-crypto packages swarm)
   #:use-module (guix-crypto packages ethereum)
   #:use-module (guix-crypto services swarm-utils)
@@ -47,8 +48,7 @@
   #:export (swarm-configuration
             swarm-configuration?
             swarm-service-type
-            swarm-service
-            swarm-module-filter))
+            swarm-service))
 
 
 ;;;
@@ -107,6 +107,7 @@ a local Gnosis chain node instance, then you can add its name here.")
   (swarm-group-id        (maybe-non-negative-integer 'disabled)
                          "Unix gid for @code{swarm-group}.")
   ;; Swarm config
+  ;; TODO validate it to be compatible with paths
   (swarm                 (swarm-name 'mainnet)
                          "Either one of the symbols @code{'testnet} or \
 @code{'mainnet}, or a string when specifying the details of a custom swarm.")
@@ -237,28 +238,26 @@ specify the following configuration values: ~{~A, ~}.")
   (if value "true" "false"))
 
 ;; TODO maybe use serialize-configuration
-(define (make-bee-config-file config swarm-name bee-index mainnet network-id
-                              ;;eth-address
-                              )
+(define (serialize-bee-config config bee-index)
   (match-record config <swarm-configuration>
-    (full-node api-port-base p2p-port-base
+    (swarm mainnet network-id full-node api-port-base p2p-port-base
                debug-api-port-base debug-api-enable db-open-files-limit
                global-pinning-enable verbosity)
     (string-append
      "mainnet: "          (scheme-boolean->string mainnet) "\n"
      "network-id: \""     (number->string network-id) "\"\n"
      "full-node: "        (scheme-boolean->string full-node) "\n"
-     "data-dir: "         (bee-data-directory swarm-name bee-index) "\n"
+     "data-dir: "         (bee-data-directory swarm bee-index) "\n"
      "api-addr: :"        (number->string (+ api-port-base bee-index)) "\n"
      "p2p-addr: :"        (number->string (+ p2p-port-base bee-index)) "\n"
      "debug-api-addr: :"  (number->string (+ debug-api-port-base bee-index)) "\n"
      "debug-api-enable: " (scheme-boolean->string debug-api-enable) "\n"
      "db-open-files-limit: \"" (number->string db-open-files-limit) "\"\n"
      "global-pinning-enable: \"" (scheme-boolean->string global-pinning-enable) "\"\n"
-     "password-file: \""  (bee-password-file swarm-name) "\"\n"
+     "password-file: \""  (bee-password-file swarm) "\"\n"
      ;; NOTE we will pass clef-signer-enable as a CLI arg, so that the `bee
      ;; init` phase doesn't want to connect to clef.
-     "clef-signer-endpoint: " (clef-ipc-file swarm-name) "\n"
+     "clef-signer-endpoint: " (clef-ipc-file swarm) "\n"
      "verbosity: "        (object->string verbosity) "\n"
      )))
 
@@ -266,27 +265,20 @@ specify the following configuration values: ~{~A, ~}.")
 ;;;
 ;;; Service implementation
 ;;;
-(define swarm-module-filter
-  (match-lambda
-    (('guix 'config) #f)
-    (('guix _ ...) #t)
-    (('gnu _ ...) #t)
-    (('nongnu _ ...) #t)
-    (('nonguix _ ...) #t)
-    (('guix-crypto _ ...) #t)
-    (_ #f)))
-
+;; TODO use with-service-gexp-modules
 (define-syntax-rule (with-swarm-gexp-modules body ...)
   (with-imported-modules (source-module-closure
                           '((gnu build shepherd)
                             (guix-crypto utils)
+                            (guix-crypto service-utils)
                             (guix-crypto services swarm-utils))
-                          #:select? swarm-module-filter)
+                          #:select? default-service-module-filter)
     body ...))
 
 (define (swarm-default-service-modules)
   (append '((gnu build shepherd)
             (guix-crypto utils)
+            (guix-crypto service-utils)
             (guix-crypto services swarm-utils)
             (srfi srfi-1)
             (srfi srfi-19)
@@ -304,6 +296,7 @@ specify the following configuration values: ~{~A, ~}.")
        (requirement '(networking file-systems))
        (modules (swarm-default-service-modules))
        (start
+        ;; TODO eliminate clef-data-directory
         (let* ((data-dir     (clef-data-directory     swarm))
                (keystore-dir (clef-keystore-directory swarm))
                (4byte.json   (upstream-bee-clef-file "/packaging/4byte.json"))
@@ -317,9 +310,8 @@ specify the following configuration values: ~{~A, ~}.")
                             #$rules.js #$4byte.json)))
           ;; TODO it would be nice to get rid of the start shell script, but
           ;; i don't want to get into pipes and stuff in scheme when
-          ;; upstream has put together a shell script already.
+          ;; upstream has already put together a shell script.
           #~(lambda args
-              (begin 48) ; TODO delme
               #$(swarm-service-gexp
                  config
                  #~(begin
@@ -347,16 +339,9 @@ specify the following configuration values: ~{~A, ~}.")
                      ;; from start until clef is properly up and running,
                      ;; otherwise the (requirement `(clef-service-name)) is
                      ;; useless on the bee service.
-                     (let ((ipc-file #$(clef-ipc-file swarm)))
-                       (false-if-exception
-                        (delete-file ipc-file))
-                       (let ((pid (apply forkexec args)))
-                         (while (not (file-exists? ipc-file))
-                           (format #t "Waiting for the IPC file ~S to show up.~%"
-                                   ipc-file)
-                           (sleep 1))
-                         (chmod ipc-file #o660)
-                         pid)))))))
+                     (let ((pid (apply forkexec args)))
+                       (ensure-ipc-file-permissions pid #$(clef-ipc-file swarm))
+                       pid))))))
        (stop #~(make-kill-destructor))))))
 
 (define (make-shepherd-service/bee bee-index config)
@@ -389,11 +374,7 @@ specify the following configuration values: ~{~A, ~}.")
        (let* ((data-dir (bee-data-directory swarm bee-index))
               (account-file (bee-account-file swarm bee-index))
               (config-file (plain-file "bee-config.yaml"
-                                       (make-bee-config-file config
-                                                             swarm
-                                                             bee-index
-                                                             mainnet
-                                                             network-id))))
+                                       (serialize-bee-config config bee-index))))
          #~(lambda args
              #$(swarm-service-gexp
                 config
