@@ -15,10 +15,22 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
+;;;
+;;; This file is rather liberal in depending on other modules, and
+;;; mostly containst stuff that is useful for the service
+;;; implementation, but only on the build side (i.e. not in code that
+;;; will be executed by Shephard).
+;;;
+
 (define-module (guix-crypto service-utils)
   #:use-module (guix-crypto utils)
+  #:use-module (gnu packages base)
+  #:use-module (guix gexp)
+  ;;#:use-module (guix utils)
   #:use-module (srfi srfi-71)
-  #:use-module (ice-9 match))
+  #:use-module (ice-9 match)
+  #:export        ; Also note the extensive use of DEFINE-PUBLIC below
+  (with-service-gexp-modules))
 
 ;;;
 ;;; Configuration
@@ -47,31 +59,10 @@
     (('guix-crypto _ ...) #t)
     (_ #f)))
 
-;; NOTE using DEFINE-PUBLIC* here results in an undefined function
-;; error below, probably because BEGIN breaking toplevelness.
-(define* (wait-for-file pid path #:optional (timeout 60))
-  (false-if-exception
-   (delete-file path))
-  (let ((start (get-monotonic-time))
-        (time-passed 0)
-        (pid-pair #f))
-    (while
-        (begin
-          (format #t "Waiting for the file '~S' to show up; ~F secs passed.~%" path time-passed)
-          (log.debug "Waiting for the file '~S' to show up; ~F secs passed." path time-passed)
-          (sleep 1)
-          (set! time-passed (- (get-monotonic-time) start))
-          (set! pid-pair    (waitpid pid WNOHANG))
-          (let ((child-exited? (not (zero? (car pid-pair)))))
-            (and (< time-passed timeout)
-                 (not child-exited?)
-                 (not (file-exists? path))))))
-    (values time-passed (car pid-pair) (cdr pid-pair))))
-
-(define-public* (ensure-ipc-file-permissions pid path #:optional (perms #o660))
-  (let ((time-passed child-pid exit-code (wait-for-file pid path)))
-   (if (file-exists? path)
-       (begin
-         (log.debug "Setting permissions of file '~S' to #o~O" path perms)
-         (chmod path perms))
-       (log.error "Unexpected outcome while waiting for file '~S'; child-pid is ~S, exit-code is ~S, time-passed is ~F" path child-pid exit-code time-passed))))
+(define-syntax-rule (with-service-gexp-modules modules body ...)
+  (with-imported-modules (source-module-closure
+                          (append '((gnu build shepherd)
+                                    (guix-crypto utils))
+                                  modules)
+                          #:select? default-service-module-filter)
+    body ...))

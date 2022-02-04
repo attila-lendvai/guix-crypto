@@ -15,6 +15,13 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
+;;;
+;;; This file does not bring in a large transitive closure of
+;;; dependencies (i.e. no dependency on GEXP stuff), and thus can be
+;;; used in the Shephard sice of the code (e.g. in the service start
+;;; forms).
+;;;
+
 (define-module (guix-crypto utils)
   ;; CALL-WITH-PORT is only available from (ice-9 ports) after commit
   ;; 9fecf20fcf1bac764b3d812e07ed4a4a56be52a2 (which was released in Guile
@@ -30,8 +37,10 @@
   #:use-module (ice-9 ports)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 format)
-  #:export ; Also note the extensive use of DEFINE-PUBLIC below
-  (define-public*))
+  #:export        ; Also note the extensive use of DEFINE-PUBLIC below
+  (with-log-directory
+   with-service-environment
+   define-public*))
 
 (define-syntax define-public*
   (syntax-rules ()
@@ -51,6 +60,10 @@
   "BUG: Swarm's *LOG-DIRECTORY* is unset")
 
 (define-public *log-directory* (make-parameter +log-directory-initial-value+))
+
+(define-syntax-rule (with-log-directory path body ...)
+  (parameterize ((*log-directory* path))
+    body ...))
 
 (define-public (service-log-filename)
   (let ((basedir (*log-directory*)))
@@ -72,7 +85,7 @@
                        (apply format port format-string args)
                        (newline port))))
    #:on-error
-   (lambda args
+   (lambda _
      (format (current-error-port)
              "An error from inside the logging infrastructure is being ignored.")))
   (values))
@@ -154,7 +167,41 @@
        (chown dir (or uid -1) (or gid -1)))
      directories)))
 
+(define-public (ensure-service-directories owner group . directories)
+  (apply ensure-directories owner group #o2770 directories)
+  (apply chown-r owner group directories)
+  (values))
+
 (define-public (get-monotonic-time)
   ;; TODO maybe this should return a float?
   (/ (get-internal-real-time)
      internal-time-units-per-second))
+
+;; NOTE using DEFINE-PUBLIC* here results in an undefined function
+;; error below, probably because BEGIN breaking toplevelness.
+(define* (wait-for-file pid path #:optional (timeout 60))
+  (false-if-exception
+   (delete-file path))
+  (let ((start (get-monotonic-time))
+        (time-passed 0)
+        (pid-pair #f))
+    (while
+        (begin
+          (format #t "Waiting for the file '~S' to show up; ~F secs passed.~%" path time-passed)
+          (log.debug "Waiting for the file '~S' to show up; ~F secs passed." path time-passed)
+          (sleep 1)
+          (set! time-passed (- (get-monotonic-time) start))
+          (set! pid-pair    (waitpid pid WNOHANG))
+          (let ((child-exited? (not (zero? (car pid-pair)))))
+            (and (< time-passed timeout)
+                 (not child-exited?)
+                 (not (file-exists? path))))))
+    (values time-passed (car pid-pair) (cdr pid-pair))))
+
+(define-public* (ensure-ipc-file-permissions pid path #:optional (perms #o660))
+  (let ((time-passed child-pid exit-code (wait-for-file pid path)))
+   (if (file-exists? path)
+       (begin
+         (log.debug "Setting permissions of file '~S' to #o~O" path perms)
+         (chmod path perms))
+       (log.error "Unexpected outcome while waiting for file '~S'; child-pid is ~S, exit-code is ~S, time-passed is ~F" path child-pid exit-code time-passed))))

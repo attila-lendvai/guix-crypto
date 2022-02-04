@@ -19,7 +19,9 @@
 ;; $(guix system --no-graphic vm ~/workspace/guix/guix-crypto/guix-crypto/tests/swarm.scm) -m 2048
 ;; $(./pre-inst-env guix system --no-graphic vm ../guix-crypto/guix-crypto/tests/swarm.scm) -m 2048
 
-(define-module (guix-crypto tests swarm)
+(define-module (guix-crypto tests swarm) ; TODO this doesn't match the dir structure
+  #:use-module (guix-crypto utils)
+  #:use-module (guix-crypto service-utils)
   #:use-module (guix-crypto packages ethereum)
   #:use-module (guix-crypto packages swarm)
   #:use-module (guix-crypto services swarm)
@@ -80,58 +82,54 @@
                      #:swarm 'mainnet
                      #:dependencies '(xdai-mainnet))
 
-      (simple-service
-       'xdai-mainnet
-       shepherd-root-service-type
-       (list
-        (shepherd-service
-         (documentation "Openethereum node for the xDai chain.")
-         (provision '(xdai-mainnet))
-         (requirement '(networking file-systems))
-         (modules (append '((guix-crypto utils)
-                            (guix-crypto service-utils))
-                          %default-modules))
-         (start
-          ;; TODO this WITH-IMPORTED-MODULES shouldn't be needed
-          ;; here. adding a module above to the 'modules field of the
-          ;; service results in getting imported into the gexps (?),
-          ;; but without the w-i-m the module itself is not available.
-          ;; shouldn't the 'modules field of the service take care of
-          ;; that, too?
-          (with-imported-modules '((guix-crypto utils)
-                                   (guix-crypto service-utils))
-            #~(lambda args
-                (setenv "PATH" #$(file-append coreutils "/bin"))
-                (ensure-directories #f "swarm-mainnet" #o2770
-                                    "/var/log/swarm/mainnet"
-                                    "/var/lib/swarm/mainnet"
-                                    "/var/lib/swarm/mainnet/xdai")
-                (chown-r #f "swarm-mainnet"
-                         "/var/log/swarm/mainnet/"
-                         "/var/lib/swarm/mainnet/")
-                (parameterize ((*log-directory* "/tmp/")) ;; TODO
-                  (let* ((ipc-file #$+mainnet-xdai-ipc-file+)
-                         (forkexec
-                          (make-forkexec-constructor
-                           (list #$(file-append openethereum-binary "/bin/openethereum")
-                                 "--chain=xdai"
-                                 "--scale-verifiers"
-                                 "--warp-barrier=20420000"
-                                 "--no-ws"
-                                 "--no-jsonrpc"
-                                 "--base-path=/var/lib/swarm/mainnet/xdai"
-                                 "--ipc-path" ipc-file)
-                           #:user "xdai"
-                           #:group "swarm-mainnet"
-                           #:log-file "/var/log/swarm/mainnet/xdai.log"
-                           #:directory "/var/lib/swarm/mainnet/xdai"
-                           #:environment-variables
-                           (list (string-append "PATH=" #$coreutils)
-                                 "LC_ALL=en_US.UTF-8"))))
-                    (let ((pid (apply forkexec args)))
-                      (ensure-ipc-file-permissions pid ipc-file)
-                      pid))))))
-         (stop #~(make-kill-destructor)))))
+      (let ((user "xdai")
+            (group "swarm-mainnet")
+            (log-dir "/var/log/openethereum")
+            (data-dir "/var/lib/openethereum/xdai"))
+        (simple-service
+         'xdai-mainnet
+         shepherd-root-service-type
+         (list
+          (shepherd-service
+           (documentation "Openethereum node for the xDai chain.")
+           (provision '(xdai-mainnet))
+           (requirement '(networking file-systems))
+           (modules (append '((guix-crypto utils))
+                            %default-modules))
+           (start
+            ;; TODO this WITH-IMPORTED-MODULES shouldn't be needed
+            ;; here. adding a module above to the 'modules field of the
+            ;; service results in getting imported into the gexps (?),
+            ;; but without the w-i-m the module itself is not available.
+            ;; shouldn't the 'modules field of the service take care of
+            ;; that, too?
+            (with-service-gexp-modules '()
+              #~(lambda args
+                  (setenv "PATH" #$(file-append coreutils "/bin"))
+                  (with-log-directory #$log-dir
+                    (ensure-service-directories #$user #$group #$log-dir #$data-dir)
+                    (let* ((ipc-file #$+mainnet-xdai-ipc-file+)
+                           (forkexec
+                            (make-forkexec-constructor
+                             (list #$(file-append openethereum-binary "/bin/openethereum")
+                                   "--chain=xdai"
+                                   "--scale-verifiers"
+                                   "--warp-barrier=20420000"
+                                   "--no-ws"
+                                   "--no-jsonrpc"
+                                   "--base-path" #$data-dir
+                                   "--ipc-path" ipc-file)
+                             #:user #$user
+                             #:group #$group
+                             #:log-file #$(string-append log-dir "/xdai.log")
+                             #:directory #$data-dir
+                             #:environment-variables
+                             (list (string-append "PATH=" #$coreutils)
+                                   "LC_ALL=en_US.UTF-8"))))
+                      (let ((pid (apply forkexec args)))
+                        (ensure-ipc-file-permissions pid ipc-file)
+                        pid))))))
+         (stop #~(make-kill-destructor))))))
       %base-services))))
 
 (define *swarm-marionette-os*

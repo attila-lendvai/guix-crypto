@@ -265,20 +265,13 @@ specify the following configuration values: ~{~A, ~}.")
 ;;;
 ;;; Service implementation
 ;;;
-;; TODO use with-service-gexp-modules
 (define-syntax-rule (with-swarm-gexp-modules body ...)
-  (with-imported-modules (source-module-closure
-                          '((gnu build shepherd)
-                            (guix-crypto utils)
-                            (guix-crypto service-utils)
-                            (guix-crypto services swarm-utils))
-                          #:select? default-service-module-filter)
+  (with-service-gexp-modules '((guix-crypto services swarm-utils))
     body ...))
 
 (define (swarm-default-service-modules)
   (append '((gnu build shepherd)
             (guix-crypto utils)
-            (guix-crypto service-utils)
             (guix-crypto services swarm-utils)
             (srfi srfi-1)
             (srfi srfi-19)
@@ -577,7 +570,7 @@ number of times, in any random moment."
              (bee-group-id  (passwd:gid bee-pw)))
 
         ;;(format #t "SWARM-SERVICE-GEXP is about to bind *LOG-DIRECTORY* on Guile ~S~%" (version))
-        (parameterize ((*log-directory* (default-log-directory swarm)))
+        (with-log-directory (default-log-directory swarm) ; parameterize ((*log-directory* (default-log-directory swarm)))
           ;;(format #t "SWARM-SERVICE-GEXP bound *LOG-DIRECTORY* to ~S~%" (*log-directory*))
           ;; so that we can already invoke stuff before the fork+exec
           (setenv "PATH" path)
@@ -605,19 +598,13 @@ number of times, in any random moment."
           ;;
           ;; Ensure basic directory structure
           ;;
-          ;; (let ((doit (lambda (dir)
-          ;;               (mkdir-p dir)
-          ;;               (chown   dir 0 (group:gid (getgrnam "swarm")))
-          ;;               (chmod   dir #o2775))))
-          ;;   (doit (*service-log-directory*))
-          ;;   (doit *service-data-directory*))
-
           (mkdir* (*log-directory*))
 
           (let ((path (service-log-filename)))
-            ;; ensure that service.log exists, and with the right perms
+            ;; ensure as root tghat the service.log file exists, and
+            ;; with the right perms.
             (close-port (open-file path "a"))
-            (chmod path #o770))
+            (chmod path #o660))
 
           ;;
           ;; Service logging is set up
