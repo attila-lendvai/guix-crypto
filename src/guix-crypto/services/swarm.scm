@@ -19,7 +19,6 @@
   #:use-module (guix-crypto service-utils)
   #:use-module (guix-crypto packages swarm)
   #:use-module (guix-crypto packages ethereum)
-  #:use-module (guix-crypto services swarm-utils)
   #:use-module (guix diagnostics)
   #:use-module (guix ui)
   #:use-module (guix utils)
@@ -265,21 +264,44 @@ specify the following configuration values: ~{~A, ~}.")
 ;;;
 ;;; Service implementation
 ;;;
-(define-syntax-rule (with-swarm-gexp-modules body ...)
-  (with-service-gexp-modules '((guix-crypto services swarm-utils))
-    body ...))
+(define-public (default-log-directory swarm-name)
+  (string-append "/var/log/swarm/" swarm-name))
 
-(define (swarm-default-service-modules)
-  (append '((gnu build shepherd)
-            (guix-crypto utils)
-            (guix-crypto services swarm-utils)
-            (srfi srfi-1)
-            (srfi srfi-19)
-            (ice-9 ports))
-          %default-modules))
+(define +service-data-directory+ "/var/lib/swarm/")
+
+(define (swarm-data-directory swarm-name)
+  (string-append +service-data-directory+ swarm-name))
+
+(define-public (bee-data-directory swarm-name bee-index)
+  (string-append (swarm-data-directory swarm-name) "/bee-"
+                 (number->string bee-index)))
+
+(define-public (bee-account-file swarm-name bee-index)
+  (string-append (bee-data-directory swarm-name bee-index) "/eth-address"))
+
+(define-public (clef-data-directory swarm-name)
+  (string-append (swarm-data-directory swarm-name) "/clef"))
+
+(define-public (clef-ipc-file swarm-name)
+  (string-append (clef-data-directory swarm-name) "/clef.ipc"))
+
+(define-public (clef-keystore-directory swarm-name)
+  (string-append (clef-data-directory swarm-name) "/keystore"))
+
+(define-public (bee-password-file swarm-name)
+  (string-append (swarm-data-directory swarm-name) "/bee-password"))
+
+(define-public (clef-password-file swarm-name)
+  (string-append (swarm-data-directory swarm-name) "/clef-password"))
+
+(define-public (clef-service-name swarm-name)
+  (string->symbol (simple-format #f "clef-~A" swarm-name)))
+
+(define-public (bee-service-name swarm-name bee-index)
+  (string->symbol (simple-format #f "bee-~A-~A" swarm-name bee-index)))
 
 (define (make-shepherd-service/clef config)
-  (with-swarm-gexp-modules
+  (with-service-gexp-modules '()
     (match-record config <swarm-configuration>
         (swarm mainnet network-id clef-chain-id geth clef-user swarm-group)
       (shepherd-service
@@ -287,9 +309,8 @@ specify the following configuration values: ~{~A, ~}.")
                                      swarm))
        (provision (list (clef-service-name swarm)))
        (requirement '(networking file-systems))
-       (modules (swarm-default-service-modules))
+       (modules +default-service-modules+)
        (start
-        ;; TODO eliminate clef-data-directory
         (let* ((data-dir     (clef-data-directory     swarm))
                (keystore-dir (clef-keystore-directory swarm))
                (4byte.json   (upstream-bee-clef-file "/packaging/4byte.json"))
@@ -317,7 +338,7 @@ specify the following configuration values: ~{~A, ~}.")
                         #$cmd
                         #:user #$clef-user
                         #:group #$swarm-group
-                        #:log-file (clef-log-file swarm)
+                        #:log-file (string-append (*log-directory*) "/clef.log")
                         #:environment-variables
                         (list (string-append "HOME=" #$data-dir)
                               (string-append "PATH=" path)
@@ -338,7 +359,7 @@ specify the following configuration values: ~{~A, ~}.")
        (stop #~(make-kill-destructor))))))
 
 (define (make-shepherd-service/bee bee-index config)
-  (with-swarm-gexp-modules
+  (with-service-gexp-modules '()
    (match-record config <swarm-configuration>
        (swarm mainnet network-id bee bee-user swarm-group node-count
               swap-endpoint full-node clef-signer-enable
@@ -362,7 +383,7 @@ specify the following configuration values: ~{~A, ~}.")
                                         ,(clef-service-name swarm))
                             additional-service-requirements))
       (actions (list display-address-action))
-      (modules (swarm-default-service-modules))
+      (modules +default-service-modules+)
       (start
        (let* ((data-dir (bee-data-directory swarm bee-index))
               (account-file (bee-account-file swarm bee-index))
@@ -392,7 +413,9 @@ specify the following configuration values: ~{~A, ~}.")
                            cmd)
                        #:user #$bee-user
                        #:group #$swarm-group
-                       #:log-file (bee-log-file swarm #$bee-index)
+                       #:log-file (string-append
+                                   (*log-directory*)
+                                   #$(simple-format #f "/bee-~A.log" bee-index))
                        #:directory #$data-dir
                        #:environment-variables
                        (list
@@ -462,29 +485,28 @@ specify the following configuration values: ~{~A, ~}.")
             (log.debug "Will invoke clef cmd: ~A" cmd)
             (invoke bash "-c" cmd))
 
-          (define (ensure-clef-account bee-index)
-            (log.dribble "ENSURE-CLEF-ACCOUNT called for bee-index ~S in swarm ~S" bee-index #$swarm)
-            (let ((account-file (bee-account-file #$swarm bee-index)))
-              (unless (file-exists? account-file)
-                (log.debug "Adding clef account for ~S" account-file)
-                ;; TODO comment on why the lowercasing is done, or delete it.
-                (let ((cmd (string-append
-                            "echo -n $({ "
-                            (build-clef-cmd "newaccount --lightkdf 2>/dev/null << EOF
+          (define (ensure-clef-account account-file)
+            (log.dribble "ENSURE-CLEF-ACCOUNT called for ~S" account-file)
+            (unless (file-exists? account-file)
+              (log.debug "Adding clef account for ~S" account-file)
+              ;; TODO comment on why the lowercasing is done, or delete it.
+              (let ((cmd (string-append
+                          "echo -n $({ "
+                          (build-clef-cmd "newaccount --lightkdf 2>/dev/null << EOF
 $CLEF_PASSWORD
 EOF
 ")
-                            "} | tail -n -1 | cut -d'x' -f2 | tr '[:upper:]' '[:lower:]') >"
-                            account-file)))
-                  (invoke-clef-cmd cmd))
-                (let ((eth-address (read-file-to-string account-file)))
-                  (invoke-clef-cmd (build-clef-cmd
-                                    "setpw 0x"eth-address" >/dev/null 2>&1 << EOF
+                          "} | tail -n -1 | cut -d'x' -f2 | tr '[:upper:]' '[:lower:]') >"
+                          account-file)))
+                (invoke-clef-cmd cmd))
+              (let ((eth-address (read-file-to-string account-file)))
+                (invoke-clef-cmd (build-clef-cmd
+                                  "setpw 0x"eth-address" >/dev/null 2>&1 << EOF
 $CLEF_PASSWORD
 $CLEF_PASSWORD
 $CLEF_PASSWORD
 EOF
-"))))))
+")))))
 
           (mkdir+chown-r #$data-dir #o750 clef-user-id clef-group-id)
           (mkdir+chown-r #$(clef-keystore-directory swarm)
@@ -503,9 +525,9 @@ EOF
           ;;
           ;;   - needs to be run as root, i.e. not inside the
           ;;   INVOKE-AS-CLEF-USER below.
-          (map (lambda (bee-index)
-                 (mkdir* (bee-data-directory #$swarm bee-index)))
-               (iota #$node-count))
+          #$@(map (lambda (bee-index)
+                    #~(mkdir* #$(bee-data-directory swarm bee-index)))
+                  (iota node-count))
 
           (invoke-as-clef-user
            (lambda ()
@@ -529,9 +551,9 @@ EOF"))
 $CLEF_PASSWORD
 EOF")))
                ;; Ensure that each bee node has a clef account
-               (map (lambda (bee-index)
-                      (ensure-clef-account bee-index))
-                    (iota #$node-count)))))))))
+               #$@(map (lambda (bee-index)
+                         #~(ensure-clef-account #$(bee-account-file swarm bee-index)))
+                       (iota node-count)))))))))
 
 (define (bee-activation-gexp config config-file bee-index)
   (match-record config <swarm-configuration>
@@ -570,7 +592,7 @@ number of times, in any random moment."
              (bee-group-id  (passwd:gid bee-pw)))
 
         ;;(format #t "SWARM-SERVICE-GEXP is about to bind *LOG-DIRECTORY* on Guile ~S~%" (version))
-        (with-log-directory (default-log-directory swarm) ; parameterize ((*log-directory* (default-log-directory swarm)))
+        (with-log-directory #$(default-log-directory swarm) ; parameterize ((*log-directory* (default-log-directory swarm)))
           ;;(format #t "SWARM-SERVICE-GEXP bound *LOG-DIRECTORY* to ~S~%" (*log-directory*))
           ;; so that we can already invoke stuff before the fork+exec
           (setenv "PATH" path)

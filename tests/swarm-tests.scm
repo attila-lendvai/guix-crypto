@@ -19,7 +19,7 @@
 ;; $(guix system --no-graphic vm ~/workspace/guix/guix-crypto/guix-crypto/tests/swarm.scm) -m 2048
 ;; $(./pre-inst-env guix system --no-graphic vm ../guix-crypto/guix-crypto/tests/swarm.scm) -m 2048
 
-(define-module (guix-crypto tests swarm) ; TODO this doesn't match the dir structure
+(define-module (swarm-tests)
   #:use-module (guix-crypto utils)
   #:use-module (guix-crypto service-utils)
   #:use-module (guix-crypto packages ethereum)
@@ -87,15 +87,14 @@
             (log-dir "/var/log/openethereum")
             (data-dir "/var/lib/openethereum/xdai"))
         (simple-service
-         'xdai-mainnet
+         'xdai
          shepherd-root-service-type
          (list
           (shepherd-service
            (documentation "Openethereum node for the xDai chain.")
            (provision '(xdai-mainnet))
            (requirement '(networking file-systems))
-           (modules (append '((guix-crypto utils))
-                            %default-modules))
+           (modules +default-service-modules+)
            (start
             ;; TODO this WITH-IMPORTED-MODULES shouldn't be needed
             ;; here. adding a module above to the 'modules field of the
