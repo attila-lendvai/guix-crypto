@@ -591,9 +591,7 @@ number of times, in any random moment."
              (bee-user-id   (passwd:uid bee-pw))
              (bee-group-id  (passwd:gid bee-pw)))
 
-        ;;(format #t "SWARM-SERVICE-GEXP is about to bind *LOG-DIRECTORY* on Guile ~S~%" (version))
-        (with-log-directory #$(default-log-directory swarm) ; parameterize ((*log-directory* (default-log-directory swarm)))
-          ;;(format #t "SWARM-SERVICE-GEXP bound *LOG-DIRECTORY* to ~S~%" (*log-directory*))
+        (with-log-directory #$(default-log-directory swarm)
           ;; so that we can already invoke stuff before the fork+exec
           (setenv "PATH" path)
 

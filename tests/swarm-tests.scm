@@ -25,6 +25,7 @@
   #:use-module (guix-crypto packages ethereum)
   #:use-module (guix-crypto packages swarm)
   #:use-module (guix-crypto services swarm)
+  #:use-module (guix-crypto services openethereum)
   #:use-module (gnu tests)
   #:use-module (gnu system)
   #:use-module (gnu system shadow)
@@ -55,8 +56,6 @@
   #:export (run-basic-test
             *test-swarm-starting*))
 
-(define +mainnet-xdai-ipc-file+ "/var/lib/swarm/mainnet/xdai.ipc")
-
 (define *swarm-os*
   (operating-system
     (inherit %simple-os)
@@ -78,57 +77,68 @@
       (service dhcp-client-service-type)
 
       (swarm-service #:node-count 2
-                     #:swap-endpoint +mainnet-xdai-ipc-file+
+                     #:swap-endpoint "/var/lib/openethereum/xdai/jsonrpc.ipc"
                      #:swarm 'mainnet
-                     #:dependencies '(xdai-mainnet))
+                     #:dependencies '(xdai))
 
-      (let ((user "xdai")
-            (group "swarm-mainnet")
-            (log-dir "/var/log/openethereum")
-            (data-dir "/var/lib/openethereum/xdai"))
-        (simple-service
-         'xdai
-         shepherd-root-service-type
-         (list
-          (shepherd-service
-           (documentation "Openethereum node for the xDai chain.")
-           (provision '(xdai-mainnet))
-           (requirement '(networking file-systems))
-           (modules +default-service-modules+)
-           (start
-            ;; TODO this WITH-IMPORTED-MODULES shouldn't be needed
-            ;; here. adding a module above to the 'modules field of the
-            ;; service results in getting imported into the gexps (?),
-            ;; but without the w-i-m the module itself is not available.
-            ;; shouldn't the 'modules field of the service take care of
-            ;; that, too?
-            (with-service-gexp-modules '()
-              #~(lambda args
-                  (setenv "PATH" #$(file-append coreutils "/bin"))
-                  (with-log-directory #$log-dir
-                    (ensure-service-directories #$user #$group #$log-dir #$data-dir)
-                    (let* ((ipc-file #$+mainnet-xdai-ipc-file+)
-                           (forkexec
-                            (make-forkexec-constructor
-                             (list #$(file-append openethereum-binary "/bin/openethereum")
-                                   "--chain=xdai"
-                                   "--scale-verifiers"
-                                   "--warp-barrier=20420000"
-                                   "--no-ws"
-                                   "--no-jsonrpc"
-                                   "--base-path" #$data-dir
-                                   "--ipc-path" ipc-file)
-                             #:user #$user
-                             #:group #$group
-                             #:log-file #$(string-append log-dir "/xdai.log")
-                             #:directory #$data-dir
-                             #:environment-variables
-                             (list (string-append "PATH=" #$coreutils)
-                                   "LC_ALL=en_US.UTF-8"))))
-                      (let ((pid (apply forkexec args)))
-                        (ensure-ipc-file-permissions pid ipc-file)
-                        pid))))))
-         (stop #~(make-kill-destructor))))))
+      ;; (service openethereum-service-type
+      ;;          (openethereum-configuration
+      ;;           (service-name 'openethereum-xdai)
+      ;;           (chain "xdai")))
+
+      (openethereum-service #:service-name 'xdai
+                            #:chain        "xdai"
+                            #:user         "xdai"
+                            #:group        "swarm-mainnet"
+                            #:warp-barrier 20420000)
+
+      ;; (let ((user "xdai")
+      ;;       (group "swarm-mainnet")
+      ;;       (log-dir "/var/log/openethereum")
+      ;;       (data-dir "/var/lib/openethereum/xdai"))
+      ;;   (simple-service
+      ;;    'xdai
+      ;;    shepherd-root-service-type
+      ;;    (list
+      ;;     (shepherd-service
+      ;;      (documentation "Openethereum node for the xDai chain.")
+      ;;      (provision '(xdai-mainnet))
+      ;;      (requirement '(networking file-systems))
+      ;;      (modules +default-service-modules+)
+      ;;      (start
+      ;;       ;; TODO this WITH-IMPORTED-MODULES shouldn't be needed
+      ;;       ;; here. adding a module above to the 'modules field of the
+      ;;       ;; service results in getting imported into the gexps (?),
+      ;;       ;; but without the w-i-m the module itself is not available.
+      ;;       ;; shouldn't the 'modules field of the service take care of
+      ;;       ;; that, too?
+      ;;       (with-service-gexp-modules '()
+      ;;         #~(lambda args
+      ;;             (setenv "PATH" #$(file-append coreutils "/bin"))
+      ;;             (with-log-directory #$log-dir
+      ;;               (ensure-service-directories #$user #$group #$log-dir #$data-dir)
+      ;;               (let* ((ipc-file #$+mainnet-xdai-ipc-file+)
+      ;;                      (forkexec
+      ;;                       (make-forkexec-constructor
+      ;;                        (list #$(file-append openethereum-binary "/bin/openethereum")
+      ;;                              "--chain=xdai"
+      ;;                              "--scale-verifiers"
+      ;;                              "--warp-barrier=20420000"
+      ;;                              "--no-ws"
+      ;;                              "--no-jsonrpc"
+      ;;                              "--base-path" #$data-dir
+      ;;                              "--ipc-path" ipc-file)
+      ;;                        #:user #$user
+      ;;                        #:group #$group
+      ;;                        #:log-file #$(string-append log-dir "/xdai.log")
+      ;;                        #:directory #$data-dir
+      ;;                        #:environment-variables
+      ;;                        (list (string-append "PATH=" #$coreutils)
+      ;;                              "LC_ALL=en_US.UTF-8"))))
+      ;;                 (let ((pid (apply forkexec args)))
+      ;;                   (ensure-ipc-file-permissions pid ipc-file)
+      ;;                   pid))))))
+      ;;    (stop #~(make-kill-destructor))))))
       %base-services))))
 
 (define *swarm-marionette-os*

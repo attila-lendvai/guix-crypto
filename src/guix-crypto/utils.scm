@@ -53,6 +53,11 @@
        (define* name val)
        (export name)))))
 
+(define-public (ensure-string obj)
+  (if (string? obj)
+      obj
+      (object->string obj)))
+
 ;;;
 ;;; Logging
 ;;;
@@ -85,9 +90,13 @@
                        (apply format port format-string args)
                        (newline port))))
    #:on-error
-   (lambda _
-     (format (current-error-port)
-             "An error from inside the logging infrastructure is being ignored.")))
+   (lambda (error . args)
+     (let ((port (current-error-port)))
+       (false-if-exception
+        (begin
+          (format port "An error from inside the logging infrastructure is being ignored:~%\
+ ~A: ~S~%" error args)
+          (display-backtrace (make-stack #t) port))))))
   (values))
 
 (define-public (log.dribble . args)
@@ -187,8 +196,8 @@
         (pid-pair #f))
     (while
         (begin
-          (format #t "Waiting for the file '~S' to show up; ~F secs passed.~%" path time-passed)
-          (log.debug "Waiting for the file '~S' to show up; ~F secs passed." path time-passed)
+          (format #t "Waiting for the file ~S to show up; ~F secs passed.~%" path time-passed)
+          (log.debug "Waiting for the file ~S to show up; ~F secs passed." path time-passed)
           (sleep 1)
           (set! time-passed (- (get-monotonic-time) start))
           (set! pid-pair    (waitpid pid WNOHANG))
