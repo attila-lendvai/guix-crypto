@@ -5,14 +5,16 @@ This is a package repository to be used with the [[https://www.gnu.org/software/
 manager. It contains crypto and blockchain related packages that are
 not eligible for Guix proper.
 
-* Status
-For now this channel is still *in the process of being established*,
-and it will most probably receive a few more =git push -f='s until
-things settles down.
+For now it contains packages and services to install and run [[https://www.ethswarm.org/][Swarm]] Bee nodes,
+and [[https://openethereum.org/][OpenEthereum]] instances.
 
-If you add it to your Guix in this early phase, then you may need to
-do a `guix pull --allow-downgrades`, and/or even update the channel's
-introduction in your local channel config.
+* Status
+For now this channel is still *in the process of being established*, and it may
+receive a few more =git push -f='s until things settles down.
+
+If you add it to your Guix in this early phase, then you may need to do an
+occasional `guix pull --allow-downgrades`, and may even need to update the
+channel introduction in your local channel config.
 
 * Where
 The project's [[https://github.com/attila-lendvai/guix-crypto][github page]] is the primary communication channel.
@@ -42,7 +44,7 @@ pull the Nonguix channel.
 [[https://guix.gnu.org/][Guix proper]] doesn't accept binary packages, and compiling
 crypto/blockchain related projects is not trivial. Any mistake at
 compilation (e.g. by using a different version of a dependency) may
-introduce bugs into the final binary file that could result in losing
+introduce bugs into the final executable file that could result in losing
 money.
 
 Ideally, these mission critical projects would all be /reproducible
@@ -51,6 +53,9 @@ packages in Guix proper to build them, and then authenticate the
 resulting binaries by comparing them to the officially released
 binaries, and their singatures.
 
-Until this ideal worlds is reached, this channel may hold binary Guix
-packages that download, authenticate, and patch the official binary
-releases to run on Guix.
+Until this ideal world is reached, this channel will serve as a home for crypto
+related binary Guix packages and services that download, authenticate, and patch
+the official binary releases to run on Guix.
+
+Further reading on this topic:
+- [[https://github.com/ethereum/go-ethereum/issues/18292][go-ethereum]]
