@@ -15,6 +15,9 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; Note that OpenEthereum will soon be EOL'd:
+;;; https://blog.alchemy.com/blog/openethereum-closing-shop
+
 (define-module (guix-crypto services openethereum)
   #:use-module (guix-crypto utils)
   #:use-module (guix-crypto service-utils)
@@ -147,18 +150,9 @@ the same value you provided as CHAIN.")
   (openethereum-configuration (openethereum-configuration)
    "Configuration for the OpenEthereum binary."))
 
-;; (define-macro (with-openethereum-configuration-fields config . body)
-;;   `(match-record config <openethereum-configuration>
-;;      ,(map configuration-field-name
-;;            openethereum-configuration-fields)
-;;      ,@body))
-
-;; (define (serialize-openethereum-configuration config)
-;;   (with-output-to-string
-;;     (lambda ()
-;;       (display "[parity]\n")
-;;       (serialize-configuration config openethereum-configuration-fields))))
-
+;; NOTE: We cannot easily write a config file for OE because it groups the
+;; various parameters in the TOML file, and we don't have any reified
+;; representation of that grouping.
 (define (openethereum-configuration->cmd-arguments config)
   (fold (lambda (field result)
           (let ((name (configuration-field-name field))
@@ -255,6 +249,7 @@ the same value you provided as CHAIN.")
                                  (not no-ipc))
                        (ensure-ipc-file-permissions pid #$ipc-path))
                      pid)))))
+          ;; TODO this should wait, herd restart fails now
           (stop #~(make-kill-destructor))))))))
 
 (define (make-unix-user-accounts config)

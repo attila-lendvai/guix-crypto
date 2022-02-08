@@ -15,6 +15,9 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
+;; TODO
+;; - config: add a DATA-DIR field instead of +SERVICE-DATA-DIRECTORY+
+
 (define-module (guix-crypto services swarm)
   #:use-module (guix-crypto service-utils)
   #:use-module (guix-crypto packages swarm)
@@ -48,7 +51,6 @@
             swarm-configuration?
             swarm-service-type
             swarm-service))
-
 
 ;;;
 ;;; Configuration
@@ -61,6 +63,7 @@
   (not (undefined-value? x)))
 
 (define (swarm-name? val)
+  ;; TODO validate it to be compatible with file paths
   (or (string? val)
       (member val '(mainnet testnet))))
 
@@ -69,17 +72,13 @@
       (and (integer? val)
            (<= 0 val 5))))
 
-(define (non-negative-integer? val)
-  (and (exact-integer? val)
-       (not (negative? val))))
+(define-maybe/no-serialization string)
+(define-maybe/no-serialization boolean)
+(define-maybe/no-serialization integer)
+(define-maybe/no-serialization non-negative-integer)
 
-(define-maybe non-negative-integer (no-serialization))
-(define-maybe string               (no-serialization))
-(define-maybe integer              (no-serialization))
-(define-maybe boolean              (no-serialization))
-
-;; The field names here mirror the bee config entry names.
-(define-configuration swarm-configuration
+;; TODO consider splitting this similarly to how openethereum is done
+(define-configuration/no-serialization swarm-configuration
   ;; Packages
   (bee                   (file-like bee-binary)
                          "The Bee Guix package to use.")
@@ -106,7 +105,7 @@ a local Gnosis chain node instance, then you can add its name here.")
   (swarm-group-id        (maybe-non-negative-integer 'disabled)
                          "Unix gid for @code{swarm-group}.")
   ;; Swarm config
-  ;; TODO validate it to be compatible with paths
+  ;; The field names here deliberately mirror the bee config entry names.
   (swarm                 (swarm-name 'mainnet)
                          "Either one of the symbols @code{'testnet} or \
 @code{'mainnet}, or a string when specifying the details of a custom swarm.")
@@ -145,8 +144,10 @@ symbols: @code{'silent}, @code{'error}, @code{'warn}, @code{'info}, \
 specified.")
   (mainnet               (maybe-boolean 'disabled) "")
   (extra-bee-config      (maybe-string 'disabled) "A string that will be appended as-is \
-to the end of the generated @code{bee.yml} files.")
-  (no-serialization))
+to the end of the generated @code{bee.yml} files."))
+
+(define +swarm-derived-configuration-fields+
+  '(network-id mainnet clef-chain-id))
 
 (define (apply-config-defaults config)
   (match-record config <swarm-configuration>
@@ -214,9 +215,6 @@ to the end of the generated @code{bee.yml} files.")
          (network-id    network-id)
          (clef-chain-id clef-chain-id))))))
 
-(define +swarm-derived-configuration-fields+
-  '(network-id mainnet clef-chain-id))
-
 (define (raise-missing-config-error swarm)
   (raise (formatted-message (G_ "When you specify '~S' as a custom swarm \
 (i.e. using a string as the swarm's name), then you must also specify the \
@@ -236,12 +234,15 @@ specify the following configuration values: ~{~A, ~}.")
 (define (scheme-boolean->string value)
   (if value "true" "false"))
 
-;; TODO maybe use serialize-configuration
+;; TODO maybe use SERIALIZE-CONFIGURATION, but note: each bee node needs a
+;; config, but currently the NODE-INDEX is applied in the multiple
+;; SERIALIZE-BEE-CONFIG calls, so it's not just a simple call to
+;; SERIALIZE-CONFIGURATION.
 (define (serialize-bee-config config bee-index)
   (match-record config <swarm-configuration>
     (swarm mainnet network-id full-node api-port-base p2p-port-base
-               debug-api-port-base debug-api-enable db-open-files-limit
-               global-pinning-enable verbosity)
+           debug-api-port-base debug-api-enable db-open-files-limit
+           global-pinning-enable verbosity)
     (string-append
      "mainnet: "          (scheme-boolean->string mainnet) "\n"
      "network-id: \""     (number->string network-id) "\"\n"

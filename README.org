@@ -9,11 +9,11 @@ For now it contains packages and services to install and run [[https://www.ethsw
 and [[https://openethereum.org/][OpenEthereum]] instances.
 
 * Status
-For now this channel is still *in the process of being established*, and it may
-receive a few more =git push -f='s until things settles down.
+This channel is still *in the process of being established*. Although it's
+unlkely, but it may receive a few more =git push -f='s until things settle down.
 
 If you add it to your Guix in this early phase, then you may need to do an
-occasional `guix pull --allow-downgrades`, and may even need to update the
+occasional =guix pull --allow-downgrades=, and may even need to update the
 channel introduction in your local channel config.
 
 * Where
@@ -48,7 +48,7 @@ introduce bugs into the final executable file that could result in losing
 money.
 
 Ideally, these mission critical projects would all be /reproducible
-build/, even across OS installations. Then we could have source based
+build/, even across OS installations. Then we could have source-based
 packages in Guix proper to build them, and then authenticate the
 resulting binaries by comparing them to the officially released
 binaries, and their singatures.
