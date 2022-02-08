@@ -55,13 +55,6 @@
 ;;;
 ;;; Configuration
 ;;;
-(define (undefined-value? x)
-  (or (eq? x 'undefined)
-      (eq? x 'disabled)))
-
-(define (defined-value? x)
-  (not (undefined-value? x)))
-
 (define (swarm-name? val)
   ;; TODO validate it to be compatible with file paths
   (or (string? val)
@@ -231,9 +224,6 @@ the symbols 'testnet or 'mainnet as the swarm's name), then you must not \
 specify the following configuration values: ~{~A, ~}.")
                             swarm +swarm-derived-configuration-fields+)))
 
-(define (scheme-boolean->string value)
-  (if value "true" "false"))
-
 ;; TODO maybe use SERIALIZE-CONFIGURATION, but note: each bee node needs a
 ;; config, but currently the NODE-INDEX is applied in the multiple
 ;; SERIALIZE-BEE-CONFIG calls, so it's not just a simple call to
@@ -244,23 +234,22 @@ specify the following configuration values: ~{~A, ~}.")
            debug-api-port-base debug-api-enable db-open-files-limit
            global-pinning-enable verbosity)
     (string-append
-     "mainnet: "          (scheme-boolean->string mainnet) "\n"
+     "mainnet: "          (boolean->true/false mainnet) "\n"
      "network-id: \""     (number->string network-id) "\"\n"
-     "full-node: "        (scheme-boolean->string full-node) "\n"
+     "full-node: "        (boolean->true/false full-node) "\n"
      "data-dir: "         (bee-data-directory swarm bee-index) "\n"
      "api-addr: :"        (number->string (+ api-port-base bee-index)) "\n"
      "p2p-addr: :"        (number->string (+ p2p-port-base bee-index)) "\n"
      "debug-api-addr: :"  (number->string (+ debug-api-port-base bee-index)) "\n"
-     "debug-api-enable: " (scheme-boolean->string debug-api-enable) "\n"
+     "debug-api-enable: " (boolean->true/false debug-api-enable) "\n"
      "db-open-files-limit: \"" (number->string db-open-files-limit) "\"\n"
-     "global-pinning-enable: \"" (scheme-boolean->string global-pinning-enable) "\"\n"
+     "global-pinning-enable: \"" (boolean->true/false global-pinning-enable) "\"\n"
      "password-file: \""  (bee-password-file swarm) "\"\n"
      ;; NOTE we will pass clef-signer-enable as a CLI arg, so that the `bee
      ;; init` phase doesn't want to connect to clef.
      "clef-signer-endpoint: " (clef-ipc-file swarm) "\n"
      "verbosity: "        (object->string verbosity) "\n"
      )))
-
 
 ;;;
 ;;; Service implementation
@@ -458,7 +447,7 @@ specify the following configuration values: ~{~A, ~}.")
 
 (define (clef-activation-gexp config)
   (match-record config <swarm-configuration>
-    (swarm geth node-count clef-user)
+    (swarm geth node-count bee-user clef-user swarm-group)
     (let ((4byte.json    (upstream-bee-clef-file "/packaging/4byte.json"))
           (rules.js      (upstream-bee-clef-file "/packaging/rules.js"))
           (data-dir      (clef-data-directory swarm))
@@ -477,10 +466,6 @@ specify the following configuration values: ~{~A, ~}.")
                    "--keystore \"" #$keystore-dir "\" \\\n"
                    "--stdio-ui \\\n"
                    args))
-
-          (define (invoke-as-clef-user thunk)
-            (log.dribble "INVOKE-AS-CLEF-USER called")
-            (invoke-as-user clef-pw thunk))
 
           (define (invoke-clef-cmd cmd)
             (log.debug "Will invoke clef cmd: ~A" cmd)
@@ -509,9 +494,11 @@ $CLEF_PASSWORD
 EOF
 ")))))
 
-          (mkdir+chown-r #$data-dir #o750 clef-user-id clef-group-id)
-          (mkdir+chown-r #$(clef-keystore-directory swarm)
-                         #o700 clef-user-id clef-group-id)
+          (ensure-service-directories clef-user-id clef-group-id #o750
+                                      #$data-dir)
+
+          (ensure-service-directories clef-user-id clef-group-id #o700
+                                      #$(clef-keystore-directory swarm))
 
           (ensure-password-file clef-pwd-file clef-user-id clef-group-id)
 
@@ -527,10 +514,12 @@ EOF
           ;;   - needs to be run as root, i.e. not inside the
           ;;   INVOKE-AS-CLEF-USER below.
           #$@(map (lambda (bee-index)
-                    #~(mkdir* #$(bee-data-directory swarm bee-index)))
+                    #~(ensure-service-directories bee-user-id bee-group-id #o2770
+                                                  #$(bee-data-directory swarm bee-index)))
                   (iota node-count))
 
-          (invoke-as-clef-user
+          (invoke-as-user
+           clef-pw
            (lambda ()
              (log.debug "Initializing clef for swarm ~S" #$swarm)
              ;; Sending the password in the command line would expose it.
@@ -562,18 +551,17 @@ EOF")))
     #~(let* ((data-dir      #$(bee-data-directory swarm bee-index))
              (libp2p-key    (string-append data-dir "/keys/libp2p.key")))
 
-        (mkdir+chown-r data-dir)
-
+        (ensure-service-directories bee-user-id bee-group-id #o2770 data-dir)
         (ensure-password-file #$(bee-password-file swarm) bee-user-id bee-group-id)
 
         ;; When first started, call `bee init` for this bee instance.
         (unless (file-exists? libp2p-key)
           (log.debug "Invoking `bee init` for bee-index ~S in swarm ~S" #$bee-index #$swarm)
-          (invoke-as-bee-user
-           (lambda ()
-             (invoke/quiet #$(file-append bee "/bin/bee")
-                           "--config" #$config-file
-                           "init")))))))
+          (invoke-as-user bee-pw
+                          (lambda ()
+                            (invoke/quiet #$(file-append bee "/bin/bee")
+                                          "--config" #$config-file
+                                          "init")))))))
 
 (define (swarm-service-gexp config body-gexp)
   "Returns a GEXP that is called before the start of any of the services.  It
@@ -590,56 +578,27 @@ number of times, in any random moment."
              (chown-bin     #$(file-append coreutils "/bin/chown"))
              (bee-pw        (getpwnam #$bee-user))
              (bee-user-id   (passwd:uid bee-pw))
-             (bee-group-id  (passwd:gid bee-pw)))
+             (bee-group-id  (passwd:gid bee-pw))
+             (log-dir       #$(default-log-directory swarm)))
 
-        (with-log-directory #$(default-log-directory swarm)
-          ;; so that we can already invoke stuff before the fork+exec
-          (setenv "PATH" path)
+        ;; so that we can already invoke basic commands before the fork+exec
+        (setenv "PATH" path)
+        (with-log-directory log-dir
+          (ensure-service-directories #$bee-user #$swarm-group #o2770
+                                      log-dir)
 
-          ;; TODO move as much of this as possible into
-          ;; swarm-utils.scm. The headache is that those functions
-          ;; cannot refer to store paths knowing only the package
-          ;; objects, or i don't know how.
-
-          (define* (mkdir* dir #:optional (mode #o2770) ; group sticky
-                           (user-id bee-user-id) (group-id bee-group-id))
-            (mkdir-p dir)
-            (chmod dir mode)
-            (chown dir user-id group-id))
-
-          (define* (mkdir+chown-r dir #:optional (mode #o2770) ; group sticky
-                                  (user-id bee-user-id) (group-id bee-group-id))
-            (mkdir*  dir mode user-id group-id)
-            (chown-r user-id group-id dir))
-
-          (define (invoke-as-bee-user thunk)
-            (log.dribble "INVOKE-AS-BEE-USER called")
-            (invoke-as-user bee-pw thunk))
-
-          ;;
-          ;; Ensure basic directory structure
-          ;;
-          (mkdir* (*log-directory*))
-
+          ;; Ensure as root that the service.log file exists, and it is group
+          ;; writable (because both the bee and the clef service code logs into
+          ;; it).
           (let ((path (service-log-filename)))
-            ;; ensure as root tghat the service.log file exists, and
-            ;; with the right perms.
             (close-port (open-file path "a"))
-            (chmod path #o660))
+            (chmod path #o664))
 
-          ;;
-          ;; Service logging is set up
-          ;;
-
-          ;;(log.debug* "guile version: ~A" (version))
           (log.dribble "A SWARM-SERVICE-GEXP is running for swarm ~S" swarm)
 
-          (let ((path #$(swarm-data-directory swarm)))
-            (mkdir-p path)
-            (chmod   path #o2775)
-            (chown   path 0 (group:gid (getgrnam #$swarm-group))))
-
-          (log.debug "Ensured directory ~S" #$(swarm-data-directory swarm))
+          (let ((dir #$(swarm-data-directory swarm)))
+            (ensure-directories 0 #$swarm-group #o2775 dir)
+            (log.debug "Ensured directory ~S" dir))
 
           #$body-gexp))))
 
@@ -697,10 +656,12 @@ number of times, in any random moment."
                         (node-count 1)
                         (swap-endpoint "ws://localhost:8546")
                         (swarm 'mainnet)
-                        (dependencies '()))
+                        (dependencies '())
+                        (db-open-files-limit 4000))
   (service swarm-service-type
            (swarm-configuration
             (node-count node-count)
             (swap-endpoint swap-endpoint)
             (swarm swarm)
-            (additional-service-requirements dependencies))))
+            (additional-service-requirements dependencies)
+            (db-open-files-limit db-open-files-limit))))

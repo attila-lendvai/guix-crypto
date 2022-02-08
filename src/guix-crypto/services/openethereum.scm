@@ -68,13 +68,6 @@
       (list (string-append "--" (symbol->string field-name)))
       '()))
 
-(define (service-name? val)
-  (and (defined-value? val) ; TODO delete this once srfi-189 Maybe is used for configs
-       (or (symbol? val)
-           (string? val))
-       ;; TODO assert that it's a valid file path component
-       ))
-
 (define serialize-string  serialize-field)
 (define serialize-boolean serialize-field/boolean)
 (define serialize-integer serialize-field)
@@ -220,8 +213,8 @@ the same value you provided as CHAIN.")
              #~(lambda args
                  (setenv "PATH" #$path)
                  (with-log-directory #$log-dir
-                   (ensure-service-directories #$user #$group #$log-dir #$base-path)
-                   (chown-r #$user #$group #$log-dir #$base-path)
+                   (ensure-service-directories #$user #$group #o2770
+                                               #$log-dir #$base-path)
 
                    (log.debug "OpenEthereum service is starting up")
 
