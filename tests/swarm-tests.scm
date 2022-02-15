@@ -38,6 +38,7 @@
   #:use-module (gnu services mcron)
   #:use-module (gnu services shepherd)
   #:use-module (gnu services networking)
+  #:use-module (gnu services sysctl)
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
   #:use-module (gnu packages certs)
@@ -81,16 +82,27 @@
                      #:swarm 'mainnet
                      #:dependencies '(xdai))
 
-      ;; (service openethereum-service-type
-      ;;          (openethereum-configuration
-      ;;           (service-name 'openethereum-xdai)
-      ;;           (chain "xdai")))
-
       (openethereum-service #:service-name 'xdai
                             #:chain        "xdai"
                             #:user         "xdai"
                             #:group        "swarm-mainnet"
+                            #:snapshot-peers 10
+                            #:enable-snapshotting #true
                             #:warp-barrier 20420000)
+
+      ;; (service openethereum-service-type
+      ;;          (openethereum-service-configuration
+      ;;           (service-name            'xdai)
+      ;;           (user                    "xdai")
+      ;;           (group                   "swarm-mainnet")
+      ;;           (openethereum-configuration
+      ;;            (openethereum-configuration
+      ;;             (chain                 "xdai")
+      ;;             (nat                   "upnp")
+      ;;             (max-peers             50)
+      ;;             (snapshot-peers        10)
+      ;;             (warp-barrier          20400000)
+      ;;             (scale-verifiers       #true)))))
 
       ;; (let ((user "xdai")
       ;;       (group "swarm-mainnet")
@@ -139,7 +151,12 @@
       ;;                   (ensure-ipc-file-permissions pid ipc-file)
       ;;                   pid))))))
       ;;    (stop #~(make-kill-destructor))))))
-      %base-services))))
+      (modify-services %base-services
+        (sysctl-service-type config =>
+                             (sysctl-configuration
+                              (settings (append '(("fs.file-max" . "500000")
+                                                  ("fs.inotify.max_user_watches" . "524288"))
+                                                %default-sysctl-settings)))))))))
 
 (define *swarm-marionette-os*
   (marionette-operating-system
