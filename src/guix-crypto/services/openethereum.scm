@@ -103,6 +103,8 @@ chain or a JSON file path.")
    "Disable the jsonrpc interface.")
   (no-ipc                (maybe-boolean 'disabled)
    "Disable the file based IPC interface.")
+  (enable-snapshotting   (maybe-boolean 'disabled)
+   "Create a snapshot every 5000 blocks that other nodes can download using warp syncing.")
   (ports-shift           (maybe-integer 'disabled)
    "")
   (bootnodes             (maybe-string 'disabled)
@@ -275,7 +277,7 @@ the same value you provided as CHAIN.")
   (service-type
    (name 'openethereum)
    (extensions
-    ;; We can't extend the ACTIVATION-SERVICE-TYPE here, because it executes
+    ;; We can't use the ACTIVATION-SERVICE-TYPE here, because it executes
     ;; us too early, before e.g. the filesystems are mounted in case of `guix
     ;; system --share=... vm ...`
     (list (service-extension shepherd-root-service-type
@@ -284,11 +286,14 @@ the same value you provided as CHAIN.")
                              make-unix-user-accounts)))))
 
 (define* (openethereum-service #:key
-                               (user 'disabled)
-                               (group 'disabled)
-                               (chain "foundation")
-                               (service-name 'openethereum)
-                               (warp-barrier 'disabled))
+                               (user                'disabled)
+                               (group               'disabled)
+                               (chain               "foundation")
+                               (service-name        'openethereum)
+                               (warp-barrier        'disabled)
+                               (max-peers           'disabled)
+                               (snapshot-peers      'disabled)
+                               (enable-snapshotting 'disabled))
   (service openethereum-service-type
            (openethereum-service-configuration
             (service-name            service-name)
@@ -298,4 +303,7 @@ the same value you provided as CHAIN.")
              (openethereum-configuration
               (chain                 chain)
               (warp-barrier          warp-barrier)
-              (scale-verifiers       #true))))))
+              (scale-verifiers       #true)
+              (max-peers             max-peers)
+              (snapshot-peers        snapshot-peers)
+              (enable-snapshotting   enable-snapshotting))))))
