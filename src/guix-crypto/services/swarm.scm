@@ -319,7 +319,7 @@ specify the following configuration values: ~{~A, ~}.")
               #$(swarm-service-gexp
                  config
                  #~(begin
-                     (log.debug "Clef service is starting up")
+                     (log.debug "Clef service is starting")
 
                      #$(clef-activation-gexp config)
 
@@ -383,24 +383,26 @@ specify the following configuration values: ~{~A, ~}.")
              #$(swarm-service-gexp
                 config
                 #~(begin
-                    (log.debug "bee service start")
+                    (log.debug "Bee service is starting")
                     #$(bee-activation-gexp config config-file bee-index)
                     ;; Due to timing, we cannot add the node's eth address to
                     ;; the config file above, because it only gets generated
                     ;; at clef's service start time. Hence the extra round to
-                    ;; pass it as a CLI argument at our own start time.
+                    ;; pass it as an env variable at our own start time.
                     (let ((eth-address (when #$clef-signer-enable
                                          (call-with-input-file #$account-file
                                            (lambda (port)
                                              (get-string-all port)))))
-                          (cmd (list #$(file-append bee "/bin/bee")
-                                     "--config" #$config-file
-                                     "start")))
+                          (cmd (append
+                                (list #$(file-append bee "/bin/bee")
+                                      "--config" #$config-file
+                                      "start")
+                                (if #$clef-signer-enable
+                                    (list "--clef-signer-enable")
+                                    '()))))
+                      (log.dribble "About to fork+exec ~S" cmd)
                       (fork+exec-command
-                       (if #$clef-signer-enable
-                           (append cmd
-                               (list "--clef-signer-enable"))
-                           cmd)
+                       cmd
                        #:user #$bee-user
                        #:group #$swarm-group
                        #:log-file (string-append
@@ -514,8 +516,9 @@ EOF
           ;;   - needs to be run as root, i.e. not inside the
           ;;   INVOKE-AS-CLEF-USER below.
           #$@(map (lambda (bee-index)
-                    #~(ensure-service-directories bee-user-id bee-group-id #o2770
-                                                  #$(bee-data-directory swarm bee-index)))
+                    #~(ensure-service-directories
+                       bee-user-id bee-group-id #o2770
+                       #$(bee-data-directory swarm bee-index)))
                   (iota node-count))
 
           (invoke-as-user

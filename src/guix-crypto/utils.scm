@@ -176,8 +176,9 @@
        (chown dir (or uid -1) (or gid -1)))
      directories)))
 
-(define-public (ensure-service-directories owner group perms . directories)
-  (apply ensure-directories owner group perms directories)
+(define-public (ensure-service-directories owner group permissions
+                                           . directories)
+  (apply ensure-directories owner group permissions directories)
   (apply chown-r owner group directories)
   (values))
 
