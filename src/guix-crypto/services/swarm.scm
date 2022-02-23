@@ -132,6 +132,7 @@ symbols: @code{'silent}, @code{'error}, @code{'warn}, @code{'info}, \
 @code{'debug}, @code{'trace}.")
   (full-node             (boolean #true) "")
   (swap-endpoint         (string) "A blockchain node endpoint to connect to.")
+  (swap-initial-deposit  (maybe-non-negative-integer 'disabled) "")
   (network-id            (maybe-non-negative-integer 'disabled) "Defaults to @code{1} for \
 @code{mainnet}, and @code{10} for @code{testnet}; otherwise it must be \
 specified.")
@@ -232,7 +233,7 @@ specify the following configuration values: ~{~A, ~}.")
   (match-record config <swarm-configuration>
     (swarm mainnet network-id full-node api-port-base p2p-port-base
            debug-api-port-base debug-api-enable db-open-files-limit
-           global-pinning-enable verbosity)
+           global-pinning-enable verbosity swap-initial-deposit)
     (string-append
      "mainnet: "          (boolean->true/false mainnet) "\n"
      "network-id: \""     (number->string network-id) "\"\n"
@@ -244,6 +245,9 @@ specify the following configuration values: ~{~A, ~}.")
      "debug-api-enable: " (boolean->true/false debug-api-enable) "\n"
      "db-open-files-limit: \"" (number->string db-open-files-limit) "\"\n"
      "global-pinning-enable: \"" (boolean->true/false global-pinning-enable) "\"\n"
+     (if (defined-value? swap-initial-deposit)
+         (string-append "swap-initial-deposit: \"" (number->string swap-initial-deposit) "\"\n")
+         "")
      "password-file: \""  (bee-password-file swarm) "\"\n"
      ;; NOTE we will pass clef-signer-enable as a CLI arg, so that the `bee
      ;; init` phase doesn't want to connect to clef.
@@ -658,6 +662,7 @@ number of times, in any random moment."
 (define* (swarm-service #:key
                         (node-count 1)
                         (swap-endpoint "ws://localhost:8546")
+                        (swap-initial-deposit 'disabled)
                         (swarm 'mainnet)
                         (dependencies '())
                         (db-open-files-limit 4000))
@@ -665,6 +670,7 @@ number of times, in any random moment."
            (swarm-configuration
             (node-count node-count)
             (swap-endpoint swap-endpoint)
+            (swap-initial-deposit swap-initial-deposit)
             (swarm swarm)
             (additional-service-requirements dependencies)
             (db-open-files-limit db-open-files-limit))))

@@ -80,6 +80,7 @@
       (swarm-service #:node-count 2
                      #:swap-endpoint "/var/lib/openethereum/xdai/jsonrpc.ipc"
                      #:swarm 'mainnet
+                     #:swap-initial-deposit 0
                      #:dependencies '(xdai))
 
       (openethereum-service #:service-name 'xdai
