@@ -215,7 +215,7 @@ the same value you provided as CHAIN.")
              #~(lambda args
                  (setenv "PATH" #$path)
                  (with-log-directory #$log-dir
-                   (ensure-service-directories #$user #$group #o2770
+                   (ensure-service-directories #$user #$group #o2750
                                                #$log-dir #$base-path)
 
                    (log.debug "OpenEthereum service is starting up")
