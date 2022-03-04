@@ -147,7 +147,8 @@ to the end of the generated @code{bee.yml} files."))
   (match-record config <swarm-configuration>
     (swarm mainnet network-id clef-chain-id
            bee-user clef-user swarm-group
-           p2p-port-base api-port-base debug-api-port-base)
+           p2p-port-base api-port-base debug-api-port-base
+           db-open-files-limit)
 
     (define* (default-port value mainnet-port testnet-port)
       (or (defined-value? value)
@@ -200,6 +201,8 @@ to the end of the generated @code{bee.yml} files."))
                              (string-append "clef-"  swarm-name)))
          (swarm-group    (or (defined-value? swarm-group)
                              (string-append "swarm-" swarm-name)))
+         (db-open-files-limit (or (defined-value? db-open-files-limit)
+                                  200))
          (p2p-port-base (default-port p2p-port-base 1600 1900))
          (api-port-base (default-port api-port-base 1700 2000))
          (debug-api-port-base (default-port debug-api-port-base 1800 2100))
@@ -357,7 +360,7 @@ specify the following configuration values: ~{~A, ~}.")
    (match-record config <swarm-configuration>
        (swarm mainnet network-id bee bee-user swarm-group node-count
               swap-endpoint full-node clef-signer-enable
-              additional-service-requirements)
+              additional-service-requirements db-open-files-limit)
 
      (define display-address-action
        (shepherd-action
@@ -413,6 +416,9 @@ specify the following configuration values: ~{~A, ~}.")
                                    (*log-directory*)
                                    #$(simple-format #f "/bee-~A.log" bee-index))
                        #:directory #$data-dir
+                       #:resource-limits
+                       `((nofile ,#$(+ db-open-files-limit 4096)
+                                 ,#$(+ db-open-files-limit 4096)))
                        #:environment-variables
                        (list
                         (string-append "HOME=" #$data-dir)
@@ -665,7 +671,7 @@ number of times, in any random moment."
                         (swap-initial-deposit 'disabled)
                         (swarm 'mainnet)
                         (dependencies '())
-                        (db-open-files-limit 4000))
+                        (db-open-files-limit 4096))
   (service swarm-service-type
            (swarm-configuration
             (node-count node-count)
