@@ -181,10 +181,10 @@ the same value you provided as CHAIN.")
              (chain chain)
              (base-path    (if (defined-value? base-path)
                                (ensure-string base-path)
-                               (string-append "/var/lib/openethereum/" chain)))
+                               (string-append "/var/lib/openethereum/" service-name)))
              (ipc-path     (if (defined-value? ipc-path)
                                ipc-path
-                               (string-append base-path "/jsonrpc.ipc")))))))))))
+                               (string-append "/var/lib/openethereum/" service-name ".ipc")))))))))))
 
 ;;;
 ;;;
