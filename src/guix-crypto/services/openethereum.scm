@@ -171,10 +171,10 @@ the same value you provided as CHAIN.")
            (user         (or (defined-value? user)
                              (string-append "oe-" chain)))
            (group        (or (defined-value? group)
-                             (string-append "oe-" chain)))
+                             "openethereum"))
            (service-name (if (defined-value? service-name)
                              (ensure-string service-name)
-                             (string-append "openethereum-" chain)))
+                             (string-append "oe-" chain)))
            (openethereum-configuration
             (openethereum-configuration
              (inherit oe-config)
@@ -184,7 +184,9 @@ the same value you provided as CHAIN.")
                                (string-append "/var/lib/openethereum/" service-name)))
              (ipc-path     (if (defined-value? ipc-path)
                                ipc-path
-                               (string-append "/var/lib/openethereum/" service-name ".ipc")))))))))))
+                               (string-append "/var/lib/openethereum/"
+                                              service-name "/"
+                                              service-name ".ipc")))))))))))
 
 ;;;
 ;;;
@@ -215,17 +217,25 @@ the same value you provided as CHAIN.")
              #~(lambda args
                  (setenv "PATH" #$path)
                  (with-log-directory #$log-dir
-                   (ensure-service-directories #$user #$group #o2750
-                                               #$log-dir #$base-path)
+                   (ensure-directories 0 "openethereum" #o2775
+                                       "/var/lib/openethereum"
+                                       "/var/log/openethereum")
+
+                   (ensure-directories/rec #$user #$group #o2750
+                                           #$base-path)
 
                    (log.debug "OpenEthereum service is starting up")
 
+                   (define cmd '#$(cons*
+                                   (file-append openethereum "/bin/openethereum")
+                                   (openethereum-configuration->cmd-arguments
+                                    openethereum-configuration)))
+
+                   (log.debug "Will exec ~S" cmd)
+
                    (define forkexec
                      (make-forkexec-constructor
-                      (cons*
-                       #$(file-append openethereum "/bin/openethereum")
-                       '#$(openethereum-configuration->cmd-arguments
-                           openethereum-configuration))
+                      cmd
                       #:user #$user
                       #:group #$group
                       #:log-file (string-append (*log-directory*)
@@ -257,18 +267,27 @@ the same value you provided as CHAIN.")
       (chain base-path)
       ;; NOTE it's safe to forward the #false default value of uid/gid to
       ;; USER-ACCOUNT.
-      (list (user-group
-             (name group)
-             (id (or (defined? group-id) #false))
-             (system? #t))
-            (user-account
-             (name user)
-             (uid (or (defined? user-id) #false))
-             (group group)
-             (system? #t)
-             (comment (string-append "OpenEthereum service for chain '" chain "'"))
-             (home-directory base-path)
-             (shell (file-append shadow "/sbin/nologin")))))))
+      (append
+       (if (equal? group "openethereum")
+           '()
+           (list
+            (user-group
+             (name "openethereum")
+             (system? #t))))
+       (list
+        (user-group
+         (name group)
+         (id (or (defined? group-id) #false))
+         (system? #t))
+        (user-account
+         (name user)
+         (uid (or (defined? user-id) #false))
+         (group group)
+         (supplementary-groups (delete group '("openethereum")))
+         (system? #t)
+         (comment (string-append "OpenEthereum service for chain '" chain "'"))
+         (home-directory base-path)
+         (shell (file-append shadow "/sbin/nologin"))))))))
 
 ;;
 ;; Interfacing with Guix

@@ -89,6 +89,8 @@ a local Gnosis chain node instance, then you can add its name here.")
                          "Unix user for the Bee processes in this swarm.")
   (bee-user-id           (maybe-non-negative-integer 'disabled)
                          "Unix uid for @code{bee-user}.")
+  (bee-supplementary-groups (list '())
+   "Supplementary groups for the BEE-USER.")
   (clef-user             (maybe-string 'disabled)
                          "Unix user for the clef process in this swarm.")
   (clef-user-id          (maybe-non-negative-integer 'disabled)
@@ -261,8 +263,10 @@ specify the following configuration values: ~{~A, ~}.")
 ;;;
 ;;; Service implementation
 ;;;
+(define +service-log-directory+ "/var/log/swarm/")
+
 (define-public (default-log-directory swarm-name)
-  (string-append "/var/log/swarm/" swarm-name))
+  (string-append +service-log-directory+ swarm-name))
 
 (define +service-data-directory+ "/var/lib/swarm/")
 
@@ -496,7 +500,8 @@ EOF
 ")
                           "} | tail -n -1 | cut -d'x' -f2 | tr '[:upper:]' '[:lower:]') >"
                           account-file)))
-                (invoke-clef-cmd cmd))
+                (invoke-clef-cmd cmd)
+                (chmod account-file #o440))
               (let ((eth-address (read-file-to-string account-file)))
                 (invoke-clef-cmd (build-clef-cmd
                                   "setpw 0x"eth-address" >/dev/null 2>&1 << EOF
@@ -506,11 +511,15 @@ $CLEF_PASSWORD
 EOF
 ")))))
 
-          (ensure-service-directories clef-user-id clef-group-id #o750
-                                      #$data-dir)
+          (ensure-directories 0 "swarm" #o2771
+                              #$+service-log-directory+
+                              #$+service-data-directory+)
 
-          (ensure-service-directories clef-user-id clef-group-id #o700
-                                      #$(clef-keystore-directory swarm))
+          (ensure-directories/rec clef-user-id clef-group-id #o750
+                                  #$data-dir)
+
+          (ensure-directories/rec clef-user-id clef-group-id #o700
+                                  #$(clef-keystore-directory swarm))
 
           (ensure-password-file clef-pwd-file clef-user-id clef-group-id)
 
@@ -526,7 +535,7 @@ EOF
           ;;   - needs to be run as root, i.e. not inside the
           ;;   INVOKE-AS-CLEF-USER below.
           #$@(map (lambda (bee-index)
-                    #~(ensure-service-directories
+                    #~(ensure-directories/rec
                        bee-user-id bee-group-id #o2770
                        #$(bee-data-directory swarm bee-index)))
                   (iota node-count))
@@ -564,7 +573,7 @@ EOF")))
     #~(let* ((data-dir      #$(bee-data-directory swarm bee-index))
              (libp2p-key    (string-append data-dir "/keys/libp2p.key")))
 
-        (ensure-service-directories bee-user-id bee-group-id #o2770 data-dir)
+        (ensure-directories/rec bee-user-id bee-group-id #o2770 data-dir)
         (ensure-password-file #$(bee-password-file swarm) bee-user-id bee-group-id)
 
         ;; When first started, call `bee init` for this bee instance.
@@ -597,8 +606,8 @@ number of times, in any random moment."
         ;; so that we can already invoke basic commands before the fork+exec
         (setenv "PATH" path)
         (with-log-directory log-dir
-          (ensure-service-directories #$bee-user #$swarm-group #o2770
-                                      log-dir)
+          (ensure-directories/rec #$bee-user #$swarm-group #o2771
+                                  log-dir)
 
           ;; Ensure as root that the service.log file exists, and it is group
           ;; writable (because both the bee and the clef service code logs into
@@ -619,7 +628,7 @@ number of times, in any random moment."
   (set! config (apply-config-defaults config))
   (match-record config <swarm-configuration>
     (swarm clef-signer-enable bee-user bee-user-id clef-user clef-user-id
-                        swarm-group swarm-group-id)
+           swarm-group swarm-group-id bee-supplementary-groups)
     ;; NOTE it's safe to forward the #false default value of uid/gid to
     ;; USER-ACCOUNT.
     (append
@@ -636,6 +645,9 @@ number of times, in any random moment."
            (shell (file-append shadow "/sbin/nologin"))))
          '())
      (list (user-group
+            (name "swarm")
+            (system? #t))
+           (user-group
             (name swarm-group)
             (id (or (defined? swarm-group-id) #false))
             (system? #t))
@@ -643,6 +655,7 @@ number of times, in any random moment."
             (name bee-user)
             (uid (or (defined? bee-user-id) #false))
             (group swarm-group)
+            (supplementary-groups bee-supplementary-groups)
             (system? #t)
             (comment (string-append "Swarm Bee service user for swarm "
                                     swarm))
@@ -671,6 +684,7 @@ number of times, in any random moment."
                         (swap-initial-deposit 'disabled)
                         (swarm 'mainnet)
                         (dependencies '())
+                        (bee-supplementary-groups '())
                         (debug-api-enable #false)
                         (db-open-files-limit 4096))
   (service swarm-service-type
@@ -679,6 +693,7 @@ number of times, in any random moment."
             (swap-endpoint swap-endpoint)
             (swap-initial-deposit swap-initial-deposit)
             (swarm swarm)
+            (bee-supplementary-groups bee-supplementary-groups)
             (additional-service-requirements dependencies)
             (debug-api-enable debug-api-enable)
             (db-open-files-limit db-open-files-limit))))

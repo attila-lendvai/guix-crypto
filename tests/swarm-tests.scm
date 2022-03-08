@@ -60,32 +60,33 @@
 (define *swarm-os*
   (operating-system
     (inherit %simple-os)
-    (users (cons* (user-account
-                   (name "xdai")
-                   (comment "xdai service")
-                   (group "swarm-mainnet")
-                   (system? #true))
-                  %base-user-accounts))
-    (groups (append
-             (list
-              (user-group
-               ;; to make sure it's present even when the swarm service is disabled
-               (name "swarm-mainnet")
-               (system? #true)))
-             %base-groups))
+    ;; (users (cons* (user-account
+    ;;                (name "gnosis")
+    ;;                (comment "Gnosis endpoint user")
+    ;;                (group "swarm-mainnet")
+    ;;                (system? #true))
+    ;;               %base-user-accounts))
+    ;; (groups (append
+    ;;          (list
+    ;;           (user-group
+    ;;            ;; to make sure it's present even when the swarm service is disabled
+    ;;            (name "swarm-mainnet")
+    ;;            (system? #true)))
+    ;;          %base-groups))
     (services
      (cons*
       (service dhcp-client-service-type)
 
       (swarm-service #:node-count 2
-                     #:swap-endpoint "/var/lib/openethereum/xdai/jsonrpc.ipc"
+                     #:swap-endpoint "/var/lib/openethereum/gnosis/gnosis.ipc"
                      #:swarm 'mainnet
+                     #:bee-supplementary-groups '("openethereum")
                      #:swap-initial-deposit 0
-                     #:dependencies '(xdai))
+                     #:dependencies '(gnosis))
 
-      (openethereum-service #:service-name 'xdai
+      (openethereum-service #:service-name 'gnosis
                             #:chain        "xdai"
-                            #:user         "xdai"
+                            #:user         "gnosis"
                             #:group        "swarm-mainnet"
                             #:snapshot-peers 10
                             #:enable-snapshotting #true
@@ -105,53 +106,6 @@
       ;;             (warp-barrier          20400000)
       ;;             (scale-verifiers       #true)))))
 
-      ;; (let ((user "xdai")
-      ;;       (group "swarm-mainnet")
-      ;;       (log-dir "/var/log/openethereum")
-      ;;       (data-dir "/var/lib/openethereum/xdai"))
-      ;;   (simple-service
-      ;;    'xdai
-      ;;    shepherd-root-service-type
-      ;;    (list
-      ;;     (shepherd-service
-      ;;      (documentation "Openethereum node for the xDai chain.")
-      ;;      (provision '(xdai-mainnet))
-      ;;      (requirement '(networking file-systems))
-      ;;      (modules +default-service-modules+)
-      ;;      (start
-      ;;       ;; TODO this WITH-IMPORTED-MODULES shouldn't be needed
-      ;;       ;; here. adding a module above to the 'modules field of the
-      ;;       ;; service results in getting imported into the gexps (?),
-      ;;       ;; but without the w-i-m the module itself is not available.
-      ;;       ;; shouldn't the 'modules field of the service take care of
-      ;;       ;; that, too?
-      ;;       (with-service-gexp-modules '()
-      ;;         #~(lambda args
-      ;;             (setenv "PATH" #$(file-append coreutils "/bin"))
-      ;;             (with-log-directory #$log-dir
-      ;;               (ensure-service-directories #$user #$group #$log-dir #$data-dir)
-      ;;               (let* ((ipc-file #$+mainnet-xdai-ipc-file+)
-      ;;                      (forkexec
-      ;;                       (make-forkexec-constructor
-      ;;                        (list #$(file-append openethereum-binary "/bin/openethereum")
-      ;;                              "--chain=xdai"
-      ;;                              "--scale-verifiers"
-      ;;                              "--warp-barrier=20420000"
-      ;;                              "--no-ws"
-      ;;                              "--no-jsonrpc"
-      ;;                              "--base-path" #$data-dir
-      ;;                              "--ipc-path" ipc-file)
-      ;;                        #:user #$user
-      ;;                        #:group #$group
-      ;;                        #:log-file #$(string-append log-dir "/xdai.log")
-      ;;                        #:directory #$data-dir
-      ;;                        #:environment-variables
-      ;;                        (list (string-append "PATH=" #$coreutils)
-      ;;                              "LC_ALL=en_US.UTF-8"))))
-      ;;                 (let ((pid (apply forkexec args)))
-      ;;                   (ensure-ipc-file-permissions pid ipc-file)
-      ;;                   pid))))))
-      ;;    (stop #~(make-kill-destructor))))))
       (modify-services %base-services
         (sysctl-service-type config =>
                              (sysctl-configuration

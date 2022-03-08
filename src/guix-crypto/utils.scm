@@ -119,6 +119,8 @@
             ;; Note that we can't log after the SETGID, because the file might
             ;; be read-only for us.
             (setgid (passwd:gid pw))
+            ;; TODO set supplementary groups using setgroups. it seems like we
+            ;; need to scan all groups using (group:mem (getgrnam "lp"))
             (setuid (passwd:uid pw))
             (umask #o007)
             (with-exception-handler
@@ -176,8 +178,8 @@
        (chown dir (or uid -1) (or gid -1)))
      directories)))
 
-(define-public (ensure-service-directories owner group permissions
-                                           . directories)
+(define-public (ensure-directories/rec owner group permissions
+                                       . directories)
   (apply ensure-directories owner group permissions directories)
   (apply chown-r owner group directories)
   (values))
