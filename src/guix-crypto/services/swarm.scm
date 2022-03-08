@@ -671,6 +671,7 @@ number of times, in any random moment."
                         (swap-initial-deposit 'disabled)
                         (swarm 'mainnet)
                         (dependencies '())
+                        (debug-api-enable #false)
                         (db-open-files-limit 4096))
   (service swarm-service-type
            (swarm-configuration
@@ -679,4 +680,5 @@ number of times, in any random moment."
             (swap-initial-deposit swap-initial-deposit)
             (swarm swarm)
             (additional-service-requirements dependencies)
+            (debug-api-enable debug-api-enable)
             (db-open-files-limit db-open-files-limit))))
