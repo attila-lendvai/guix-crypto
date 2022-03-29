@@ -34,7 +34,7 @@
   #:use-module (ice-9 match))
 
 (define-public bee-binary
-  (let ((version "1.4.3"))
+  (let ((version "1.5.0"))
     (package
       (name "bee-binary")
       (version version)
@@ -64,11 +64,11 @@
               ;; then download the relevant files, and then `guix hash` them.
               (match (%current-system)
                 ("x86_64-linux"
-                 (base32 "08svflj69k9x9dkk5azlssgfdhxsgka6594ad7gxjcjr2blnl8dq"))
+                 (base32 "091fy8fimmva52gn6q8q8jgdk2y0hb8jpqh1ahyvg8znljyiji55"))
                 ("i686-linux"
-                 (base32 "03i0ciw7r4vmd9dqcll45chrxvcrv4z71wz2z3qcp65h9k67zgcd"))
+                 (base32 "04m5b356lz22532d21ql1a6r70z7h1xf6vgrwv7g5ssi0rdr3csn"))
                 ("aarch64-linux"
-                 (base32 "0nv1dxx7wnrmyzm693cglxknxpdww5a952f83p8vgmnyv2y1a84b"))
+                 (base32 "1l30mxv5w8jmvn7bibj54gs76c2bzwm1pk4rdyh46c9ylxn6b2v1"))
                 (_ (unsupported-arch name (%current-system)))))))))
 
       (supported-systems '("x86_64-linux" "i686-linux" "aarch64-linux"))
