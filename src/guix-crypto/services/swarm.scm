@@ -133,6 +133,9 @@ otherwise it must be specified.")
 symbols: @code{'silent}, @code{'error}, @code{'warn}, @code{'info}, \
 @code{'debug}, @code{'trace}.")
   (full-node             (boolean #true) "")
+  (resolver-options      (maybe-string) "A blockchain node endpoint to connect to \
+for resolving ENS names.  Normally it should be a node connected to the Ethereum \
+mainnet.")
   (swap-endpoint         (string) "A blockchain node endpoint to connect to.")
   (swap-initial-deposit  (maybe-non-negative-integer 'disabled) "")
   (network-id            (maybe-non-negative-integer 'disabled) "Defaults to @code{1} for \
@@ -363,7 +366,7 @@ specify the following configuration values: ~{~A, ~}.")
   (with-service-gexp-modules '()
    (match-record config <swarm-configuration>
        (swarm mainnet network-id bee bee-user swarm-group node-count
-              swap-endpoint full-node clef-signer-enable
+              resolver-options swap-endpoint full-node clef-signer-enable
               additional-service-requirements db-open-files-limit)
 
      (define display-address-action
@@ -426,10 +429,12 @@ specify the following configuration values: ~{~A, ~}.")
                        #:environment-variables
                        (list
                         (string-append "HOME=" #$data-dir)
-                        ;; So that it's not visible with ps (it may
-                        ;; contain keys when using a remote service).
-                        (string-append "BEE_SWAP_ENDPOINT="
-                                       #$swap-endpoint)
+                        ;; So that these are not visible with ps, or in the
+                        ;; config file (i.e. world-readable under
+                        ;; /gnu/store/), because they may contain keys when
+                        ;; using a service like Infura.
+                        (string-append "BEE_SWAP_ENDPOINT="    #$swap-endpoint)
+                        (string-append "BEE_RESOLVER_OPTIONS=" #$resolver-options)
                         (string-append "BEE_CLEF_SIGNER_ETHEREUM_ADDRESS="
                                        eth-address)
                         "LC_ALL=en_US.UTF-8"))))))))
@@ -680,6 +685,7 @@ number of times, in any random moment."
 
 (define* (swarm-service #:key
                         (node-count 1)
+                        (resolver-options 'disabled)
                         (swap-endpoint "ws://localhost:8546")
                         (swap-initial-deposit 'disabled)
                         (swarm 'mainnet)
@@ -690,6 +696,7 @@ number of times, in any random moment."
   (service swarm-service-type
            (swarm-configuration
             (node-count node-count)
+            (resolver-options resolver-options)
             (swap-endpoint swap-endpoint)
             (swap-initial-deposit swap-initial-deposit)
             (swarm swarm)
