@@ -1,20 +1,21 @@
-# -*- mode: org; coding: utf-8-unix  -*-
+# -*- mode: org; coding: utf-8-unix; fill-column: 80 -*-
 
 * What
-This is a package repository to be used with the [[https://www.gnu.org/software/guix/][GNU Guix]] package
-manager. It contains crypto and blockchain related packages that are
-not eligible for Guix proper.
-
-For now it contains packages and services to install and run [[https://www.ethswarm.org/][Swarm]] Bee nodes,
-and [[https://openethereum.org/][OpenEthereum]] instances.
+This is a package repository to be used a channel for the [[https://www.gnu.org/software/guix/][GNU Guix]] package
+manager. It is a home for crypto and blockchain related packages that are not
+eligible for Guix proper.
 
 * Status
-This channel is still *in the process of being established*. Although it's
-unlkely, but it may receive a few more =git push -f='s until things settle down.
+This channel is still pretty much *in the process of being established*.
+Although it's less and less likely, but it may still receive some =git push
+-f='s until this notice is deleted.
 
 If you add it to your Guix in this early phase, then you may need to do an
 occasional =guix pull --allow-downgrades=, and may even need to update the
 channel introduction in your local channel config.
+
+For now it contains packages and services to install and run [[https://www.ethswarm.org/][Swarm]] Bee nodes,
+and [[https://openethereum.org/][OpenEthereum]] instances.
 
 * Where
 The project's [[https://github.com/attila-lendvai/guix-crypto][github page]] is the primary communication channel.
