@@ -19,6 +19,7 @@
 ;; - config: add a DATA-DIR field instead of +SERVICE-DATA-DIRECTORY+
 
 (define-module (guix-crypto services swarm)
+  #:use-module (guix-crypto utils)
   #:use-module (guix-crypto service-utils)
   #:use-module (guix-crypto packages swarm)
   #:use-module (guix-crypto packages ethereum)
@@ -27,7 +28,7 @@
   #:use-module (guix utils)
   #:use-module (guix gexp)
   #:use-module (guix modules)
-  #:use-module (guix records)
+  #:use-module ((guix records) #:hide (match-record)) ;; TODO temporarily
   #:use-module (guix packages)
   #:use-module (guix git-download)
   #:use-module (gnu packages)
