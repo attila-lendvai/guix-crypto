@@ -161,32 +161,31 @@ the same value you provided as CHAIN.")
 
 (define (apply-config-defaults config)
   (match-record config <openethereum-service-configuration>
-    (user group service-name)
-    (let ((oe-config (openethereum-service-configuration-openethereum-configuration config)))
-      (match-record oe-config <openethereum-configuration>
+      (user group service-name (openethereum-configuration oe-config))
+    (match-record oe-config <openethereum-configuration>
         (chain base-path ipc-path)
-        (let ((chain (ensure-string chain)))
-          (openethereum-service-configuration
-           (inherit config)
-           (user         (or (defined-value? user)
-                             (string-append "oe-" chain)))
-           (group        (or (defined-value? group)
-                             "openethereum"))
-           (service-name (if (defined-value? service-name)
-                             (ensure-string service-name)
-                             (string-append "oe-" chain)))
-           (openethereum-configuration
-            (openethereum-configuration
-             (inherit oe-config)
-             (chain chain)
-             (base-path    (if (defined-value? base-path)
-                               (ensure-string base-path)
-                               (string-append "/var/lib/openethereum/" service-name)))
-             (ipc-path     (if (defined-value? ipc-path)
-                               ipc-path
-                               (string-append "/var/lib/openethereum/"
-                                              service-name "/"
-                                              service-name ".ipc")))))))))))
+      (let ((chain (ensure-string chain)))
+        (openethereum-service-configuration
+         (inherit config)
+         (user         (or (defined-value? user)
+                           (string-append "oe-" chain)))
+         (group        (or (defined-value? group)
+                           "openethereum"))
+         (service-name (if (defined-value? service-name)
+                           (ensure-string service-name)
+                           (string-append "oe-" chain)))
+         (openethereum-configuration
+          (openethereum-configuration
+           (inherit oe-config)
+           (chain chain)
+           (base-path    (if (defined-value? base-path)
+                             (ensure-string base-path)
+                             (string-append "/var/lib/openethereum/" service-name)))
+           (ipc-path     (if (defined-value? ipc-path)
+                             ipc-path
+                             (string-append "/var/lib/openethereum/"
+                                            service-name "/"
+                                            service-name ".ipc"))))))))))
 
 ;;;
 ;;;

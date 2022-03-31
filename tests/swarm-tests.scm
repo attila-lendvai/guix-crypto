@@ -79,7 +79,6 @@
 
       (swarm-service #:node-count 2
                      #:swap-endpoint "/var/lib/openethereum/gnosis/gnosis.ipc"
-                     #:swarm 'mainnet
                      #:bee-supplementary-groups '("openethereum")
                      #:swap-initial-deposit 0
                      #:dependencies '(gnosis))
