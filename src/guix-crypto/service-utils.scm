@@ -38,8 +38,7 @@
 ;;; Configuration
 ;;;
 (define-public (undefined-value? x)
-  (or (eq? x 'undefined)
-      (eq? x 'disabled)))
+  (unspecified? x))
 
 (define-public (defined-value? x)
   (if (undefined-value? x)

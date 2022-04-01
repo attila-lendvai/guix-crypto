@@ -93,7 +93,7 @@
 ;;;
 (define-configuration/no-serialization swarm
   (name                  (swarm-name) "")
-  (network-id            (maybe-non-negative-integer 'disabled) "")
+  (network-id            (maybe-non-negative-integer) "")
   (clef-chain-id         (non-negative-integer) "")
   (p2p-port-base         (non-negative-integer)
    "Base number for the p2p ports of the Bee nodes.  Defaults to 1600 for \
@@ -148,14 +148,14 @@ symbols: @code{'silent}, @code{'error}, @code{'warn}, @code{'info}, \
                          "A blockchain node endpoint to connect to for resolving ENS names.
 Normally it should be a node connected to the Ethereum mainnet.")
   (swap-endpoint         (string) "A blockchain node endpoint to connect to.")
-  (swap-initial-deposit  (maybe-non-negative-integer 'disabled) "")
+  (swap-initial-deposit  (maybe-non-negative-integer) "")
 
   (mainnet               (boolean #true) "")
   (network-id            (non-negative-integer 1) "")
-  (password-file         (maybe-string 'disabled) "")
+  (password-file         (maybe-string) "")
   (data-dir              (string) "")
-  (clef-signer-endpoint  (maybe-string 'disabled) "")
-  (extra-bee-config      (maybe-string 'disabled)
+  (clef-signer-endpoint  (maybe-string) "")
+  (extra-bee-config      (maybe-string)
                          "A string that will be appended as-is to the end of the generated \
 @code{bee.yml} files."))
 
@@ -182,19 +182,19 @@ Bee node's Shepherd service instance; i.e. here you can specify extra \
 dependencies for the start order of the services, e.g. if you are running \
 a local Gnosis chain node instance, then you can add its name here.")
   ;; Users and groups
-  (bee-user              (maybe-string 'disabled)
+  (bee-user              (maybe-string)
                          "Unix user for the Bee processes in this swarm.")
-  (bee-user-id           (maybe-non-negative-integer 'disabled)
+  (bee-user-id           (maybe-non-negative-integer)
                          "Unix uid for @code{bee-user}.")
   (bee-supplementary-groups (list '())
                             "Supplementary groups for the BEE-USER.")
-  (clef-user             (maybe-string 'disabled)
+  (clef-user             (maybe-string)
                          "Unix user for the clef process in this swarm.")
-  (clef-user-id          (maybe-non-negative-integer 'disabled)
+  (clef-user-id          (maybe-non-negative-integer)
                          "Unix uid for @code{clef-user}.")
-  (swarm-group           (maybe-string 'disabled)
+  (swarm-group           (maybe-string)
                          "Unix group for the users in this swarm.")
-  (swarm-group-id        (maybe-non-negative-integer 'disabled)
+  (swarm-group-id        (maybe-non-negative-integer)
                          "Unix gid for @code{swarm-group}."))
 
 (define (apply-config-defaults service-config)
@@ -654,7 +654,7 @@ number of times, in any random moment."
              (list
               (user-account
                (name clef-user)
-               (uid (or (defined? clef-user-id) #false))
+               (uid (or (defined-value? clef-user-id) #false))
                (group swarm-group)
                (system? #t)
                (comment (string-append "Service user for the clef instance of swarm "
@@ -667,11 +667,11 @@ number of times, in any random moment."
                 (system? #t))
                (user-group
                 (name swarm-group)
-                (id (or (defined? swarm-group-id) #false))
+                (id (or (defined-value? swarm-group-id) #false))
                 (system? #t))
                (user-account
                 (name bee-user)
-                (uid (or (defined? bee-user-id) #false))
+                (uid (or (defined-value? bee-user-id) #false))
                 (group swarm-group)
                 (supplementary-groups bee-supplementary-groups)
                 (system? #t)
@@ -700,7 +700,7 @@ number of times, in any random moment."
                         (node-count 1)
                         (resolver-options "")
                         (swap-endpoint "ws://localhost:8546")
-                        (swap-initial-deposit 'disabled)
+                        (swap-initial-deposit *unspecified*)
                         (swarm swarm/mainnet)
                         (dependencies '())
                         (bee-supplementary-groups '())
