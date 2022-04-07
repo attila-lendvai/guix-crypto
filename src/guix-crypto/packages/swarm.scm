@@ -48,8 +48,15 @@
            (replace 'unpack
              (lambda* (#:key inputs #:allow-other-keys)
                (copy-file (assoc-ref inputs "source") "bee")
-               (chmod "bee" #o555)
-               #true)))))
+               (chmod "bee" #o555)))
+           (add-after 'build 'check
+             (lambda* (#:key (tests? #t) #:allow-other-keys)
+               (when tests?
+                 ;; At the time of this writing binary-build-system does not
+                 ;; support cross builds. When it will, it will hopefully
+                 ;; declare #:tests #f and this will keep working in cross
+                 ;; builds.
+                 (invoke "./bee" "--help")))))))
       (inputs
        `(("source"
           ,(origin
