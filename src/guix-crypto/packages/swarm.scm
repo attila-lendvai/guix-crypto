@@ -15,6 +15,9 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
+;; TODO add script to update version
+;; TODO check the signature at build
+
 (define-module (guix-crypto packages swarm)
   #:use-module (guix-crypto package-utils)
   #:use-module (guix diagnostics)
@@ -34,7 +37,7 @@
   #:use-module (ice-9 match))
 
 (define-public bee-binary
-  (let ((version "1.5.0"))
+  (let ((version "1.5.1"))
     (package
       (name "bee-binary")
       (version version)
@@ -71,11 +74,11 @@
               ;; then download the relevant files, and then `guix hash` them.
               (match (%current-system)
                 ("x86_64-linux"
-                 (base32 "091fy8fimmva52gn6q8q8jgdk2y0hb8jpqh1ahyvg8znljyiji55"))
+                 (base32 "002bdp5j3wq3cxkzyh149dlxxa9f1wjrl10lf2d7jdgknhfg5ddz"))
                 ("i686-linux"
-                 (base32 "04m5b356lz22532d21ql1a6r70z7h1xf6vgrwv7g5ssi0rdr3csn"))
+                 (base32 "06xwpkwmpd93aqppss4ijky61bhga3sbanmy06hxykpbpx9wj1k8"))
                 ("aarch64-linux"
-                 (base32 "1l30mxv5w8jmvn7bibj54gs76c2bzwm1pk4rdyh46c9ylxn6b2v1"))
+                 (base32 "146nrw2m2103iyw5yj9gl5lp8j1w67xlab4ky46bkhm2m8sjjdwq"))
                 (_ (unsupported-arch name (%current-system)))))))))
 
       (supported-systems '("x86_64-linux" "i686-linux" "aarch64-linux"))
