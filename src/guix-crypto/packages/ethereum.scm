@@ -88,8 +88,8 @@ aD1XJM7Aqq5KSSLvJMap9uHNO3WQXuNOoeLsSg==
                  commit-hash))
 
 (define-public geth-binary
-  (let ((version "1.10.15")
-        (commit-hash "8be800ff")) ; first 8 digits of the tagged commit's hash
+  (let ((version "1.10.17")
+        (commit-hash "25c9b49f")) ; first 8 digits of the tagged commit's hash
     (package
       (name "geth-binary")
       (version version)
@@ -156,7 +156,26 @@ aD1XJM7Aqq5KSSLvJMap9uHNO3WQXuNOoeLsSg==
       (native-inputs
        (list gnupg patchelf))
       (inputs
-       `(("source"
+       `(("signature"
+          ,(origin
+             (method url-fetch)
+             (uri (string-append
+                   +geth-url-base+
+                   (geth-directory (%current-system) version commit-hash)
+                   ".tar.gz.asc"))
+             (sha256
+              (match (%current-system)
+                ("i686-linux"
+                 (base32
+                  "047ya79k4xlw4d1bgyjyslh0vv3j7g0p3b5hg1221k53gs2zgpx4"))
+                ("x86_64-linux"
+                 (base32
+                  "17m4gw6p93c25mdvw2zvmgbk7bacqvai73gmn4z9qc6zbpvp111h"))
+                ("aarch64-linux"
+                 (base32
+                  "13gkb8m8hspjxi91ai9agsbqq2d0p5yl166vjqdwhd8f7zzsj6fc"))
+                (_ (unsupported-arch name (%current-system)))))))
+         ("source"
           ,(origin
              (method url-fetch)
              (uri (string-append
@@ -168,34 +187,15 @@ aD1XJM7Aqq5KSSLvJMap9uHNO3WQXuNOoeLsSg==
                 ;; To update the hashes go to https://geth.ethereum.org/downloads/
                 ;; then download the alltools files for the archs, and then run
                 ;; guix hash geth-linux-amd64-1.10.15-8be800ff.tar.gz
-                ("x86_64-linux"
-                 (base32
-                  "1i6v7a9xj3a5cg596acw3y5834wfsrxf40wna6p62a5h7vmf940y"))
                 ("i686-linux"
                  (base32
-                  "12a6qshzp34pvagspi6a5kdwhsg85cmckn279gcb190s5pbrcyf7"))
-                ("aarch64-linux"
-                 (base32
-                  "0r3msm9kngqdnx2apgi69sx67y7d4s9izf6jjvzrfdi9v8fi3qpl"))
-                (_ (unsupported-arch name (%current-system)))))))
-         ("signature"
-          ,(origin
-             (method url-fetch)
-             (uri (string-append
-                   +geth-url-base+
-                   (geth-directory (%current-system) version commit-hash)
-                   ".tar.gz.asc"))
-             (sha256
-              (match (%current-system)
+                  "05pbyc2wwqla262r09iwv506mfwih31i7ln5zyiy82hkvbdv8d4n"))
                 ("x86_64-linux"
                  (base32
-                  "0c7df9jik20by6qrwfayyk8jj5car0z6ybs717hh4jf6wv8wnam0"))
-                ("i686-linux"
-                 (base32
-                  "1mmxf1bj5sxjqxphnsnm2w1yj1ayrxjbwsyzxzf4nbg8yx5ihqpv"))
+                  "1kljbr3ks2dn6jd87k7l0xaasbk82rrxmaxjkm2vy7cvaxwaq0cw"))
                 ("aarch64-linux"
                  (base32
-                  "0wyd7k9cy8kjm9xxl3yj4f49hfxagrimijviq32cbgshggjv6jbg"))
+                  "19100yqrd7z8f9cga4a52hygv93wn3syhi7ix4hi9km34v1qi89d"))
                 (_ (unsupported-arch name (%current-system)))))))))
 
       (supported-systems '("x86_64-linux" "i686-linux" "aarch64-linux"))
