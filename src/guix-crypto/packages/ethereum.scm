@@ -209,7 +209,7 @@ censorship, fraud or third party interference.")
       (license license:gpl3+))))
 
 (define-public openethereum-binary
-  (let ((version "3.3.3"))
+  (let ((version "3.3.5"))
     (package
       (name "openethereum-binary")
       (version version)
@@ -223,7 +223,7 @@ censorship, fraud or third party interference.")
           (match (%current-system)
             ("x86_64-linux"
              (base32
-              "1jdrralm77j3vkp5akwfv39p9sl6njb5h85mizzcx9x5dl562r3m"))
+              "0sncd0r5pg0gayapfb6irpqh252ma7z36cnd9ahzg5nl6a5c8wmd"))
             (_ (unsupported-arch name (%current-system)))))))
       (build-system binary-build-system)
       (arguments
