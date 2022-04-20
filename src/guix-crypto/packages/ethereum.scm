@@ -16,11 +16,14 @@
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (guix-crypto packages ethereum)
+  #:use-module (guix-crypto utils)
   #:use-module (guix-crypto package-utils)
   #:use-module (guix diagnostics)
+  #:use-module (guix gexp)
   #:use-module (guix ui)
   #:use-module (guix download)
   #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix modules)
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (gnu packages)
@@ -35,171 +38,107 @@
 
 ;; As per https://geth.ethereum.org/downloads/#openpgp_signatures
 ;; captured at 2021-10-29.
-(define +geth-linux-builder-key-fingerprint+
+(define +geth-key-fingerprint+
   "FDE5A1A044FA13D2F7ADA019A61A13569BA28146")
-
-(define +geth-linux-builder-key+
-  "-----BEGIN PGP PUBLIC KEY BLOCK-----
-Comment: Hostname:
-Version: Hockeypuck ~unreleased
-
-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
-aD1XJM7Aqq5KSSLvJMap9uHNO3WQXuNOoeLsSg==
-=1D3S
------END PGP PUBLIC KEY BLOCK-----")
 
 (define +geth-url-base+ "https://gethstore.blob.core.windows.net/builds/")
 
-(define (geth-directory system version commit-hash)
+(define* (geth-release-file-name version commit-hash #:optional (suffix ""))
   (string-append "geth-alltools-"
-                 (guix-system-name->go-system-name "geth-binary" system) "-"
+                 (guix-system-name->go-system-name "geth-binary"
+                                                   (%current-system))
+                 "-"
                  version "-"
-                 commit-hash))
+                 commit-hash
+                 ".tar.gz"
+                 suffix))
+
+(define* (geth-release-origin version hash commit-hash #:optional (suffix ""))
+  (let ((file-name (geth-release-file-name version commit-hash suffix)))
+    (origin
+      (method url-fetch)
+      (uri (string-append +geth-url-base+ file-name))
+      (file-name file-name)
+      (sha256 hash))))
 
 (define-public geth-binary
-  (let ((version "1.10.17")
-        (commit-hash "25c9b49f")) ; first 8 digits of the tagged commit's hash
+  (let* ((version "1.10.17")
+         (commit-hash "25c9b49f") ; first 8 digits of the tagged commit's hash
+         (signing-key (local-file "geth-signing-key.asc"))
+         (signature (geth-release-origin
+                     version
+                     (match (%current-system)
+                       ("i686-linux"
+                        (base32 "047ya79k4xlw4d1bgyjyslh0vv3j7g0p3b5hg1221k53gs2zgpx4"))
+                       ("x86_64-linux"
+                        (base32 "17m4gw6p93c25mdvw2zvmgbk7bacqvai73gmn4z9qc6zbpvp111h"))
+                       ("aarch64-linux"
+                        (base32 "13gkb8m8hspjxi91ai9agsbqq2d0p5yl166vjqdwhd8f7zzsj6fc"))
+                       (_ (unsupported-arch name (%current-system))))
+                     commit-hash
+                     ".asc")))
     (package
       (name "geth-binary")
       (version version)
-      (source #false)                   ; see below
+      (source
+       (geth-release-origin
+        version
+        (match (%current-system)
+          ;; To update the hashes go to https://geth.ethereum.org/downloads/
+          ;; then download the alltools files for the archs, and then run
+          ;; guix hash geth-linux-amd64-1.10.15-8be800ff.tar.gz
+          ("i686-linux"
+           (base32 "05pbyc2wwqla262r09iwv506mfwih31i7ln5zyiy82hkvbdv8d4n"))
+          ("x86_64-linux"
+           (base32 "1kljbr3ks2dn6jd87k7l0xaasbk82rrxmaxjkm2vy7cvaxwaq0cw"))
+          ("aarch64-linux"
+           (base32 "19100yqrd7z8f9cga4a52hygv93wn3syhi7ix4hi9km34v1qi89d"))
+          (_ (unsupported-arch name (%current-system))))
+        commit-hash))
       (outputs '("out" "clef" "evm"))
       (build-system binary-build-system)
       (arguments
-       `(#:modules ((nonguix build binary-build-system)
-                    (guix build utils))
-         #:strip-binaries? #f          ; The less we modify, the better.
-         #:patchelf-plan
-         '(("geth")
-           ("clef")
-           ("evm"))
-         #:phases
-         (modify-phases %standard-phases
-           (add-before 'unpack 'check-signatures
-             (lambda* (#:key inputs #:allow-other-keys)
-               (let* ((gpg-homedir "gpg-homedir")
-                      (key-file "geth-linux-builder.asc")
-                      (gpg-options (list "gpg"
-                                         "--homedir" gpg-homedir
-                                         "--no-options"
-                                         "--trust-model" "tofu"
-                                         "--no-auto-check-trustdb"
-                                         "--no-default-keyring"))
-                      (invoke-gpg (lambda args
-                                    (apply invoke (append gpg-options args)))))
-                 (mkdir-p gpg-homedir)
-                 (chmod gpg-homedir #o700)
-                 (with-output-to-file key-file
-                   (lambda _
-                     (display ,+geth-linux-builder-key+)))
-                 ;; import the key
-                 (invoke-gpg "--import" key-file)
-                 ;; trust it
-                 (invoke-gpg "--tofu-policy" "good"
-                             ,+geth-linux-builder-key-fingerprint+)
-                 ;; verify the archive
-                 (invoke-gpg "--verify"
-                             (assoc-ref inputs "signature")
-                             (assoc-ref inputs "source")))
-               #t))
-           (replace 'unpack
-             (lambda* (#:key inputs #:allow-other-keys)
-               (invoke "tar" "--strip-components=1" "-xzvf"
-                       (assoc-ref inputs "source"))
-               #t))
-           (replace 'install
-             ;; #:install-plan doesn't seem to be capable of producing
-             ;; multiple outputs.
-             (lambda* (#:key system outputs #:allow-other-keys)
-               (let ((out  (assoc-ref outputs "out"))
-                     (clef (assoc-ref outputs "clef"))
-                     (evm  (assoc-ref outputs "evm"))
-                     (doit (lambda (name target)
-                             (let ((target-dir (string-append target "/bin")))
-                               (mkdir-p target-dir)
-                               (copy-file name (string-append target-dir "/" name))))))
-                 (doit "geth" out)
-                 (doit "clef" clef)
-                 (doit "evm"  evm))
-               #t)))))
+       (list
+        #:imported-modules (source-module-closure
+                            `((guix-crypto build-utils)
+                              ,@%binary-build-system-modules)
+                            #:select? default-module-filter)
+        #:modules '((guix build utils)
+                    (guix-crypto build-utils)
+                    (nonguix build binary-build-system))
+        #:strip-binaries? #f            ; The less we modify, the better.
+        #:patchelf-plan ''(("geth")
+                           ("clef")
+                           ("evm"))
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-before 'unpack 'check-signatures
+              (lambda* (#:key source #:allow-other-keys)
+                (verify-gpg-signature #$+geth-key-fingerprint+
+                                      #$signing-key
+                                      #$signature
+                                      source)))
+            (replace 'unpack
+              (lambda* (#:key source native-inputs #:allow-other-keys)
+                (invoke "tar" "--strip-components=1" "-xzvf" source)))
+            (replace 'install
+              ;; #:install-plan doesn't seem to be capable of producing
+              ;; multiple outputs.
+              (lambda* (#:key system outputs #:allow-other-keys)
+                (let ((out  (assoc-ref outputs "out"))
+                      (clef (assoc-ref outputs "clef"))
+                      (evm  (assoc-ref outputs "evm"))
+                      (doit (lambda (name target)
+                              (let ((target-dir (string-append target "/bin")))
+                                (mkdir-p target-dir)
+                                (copy-file name (string-append target-dir "/" name))))))
+                  (doit "geth" out)
+                  (doit "clef" clef)
+                  (doit "evm"  evm)))))))
       (native-inputs
-       (list gnupg patchelf))
-      (inputs
-       `(("signature"
-          ,(origin
-             (method url-fetch)
-             (uri (string-append
-                   +geth-url-base+
-                   (geth-directory (%current-system) version commit-hash)
-                   ".tar.gz.asc"))
-             (sha256
-              (match (%current-system)
-                ("i686-linux"
-                 (base32
-                  "047ya79k4xlw4d1bgyjyslh0vv3j7g0p3b5hg1221k53gs2zgpx4"))
-                ("x86_64-linux"
-                 (base32
-                  "17m4gw6p93c25mdvw2zvmgbk7bacqvai73gmn4z9qc6zbpvp111h"))
-                ("aarch64-linux"
-                 (base32
-                  "13gkb8m8hspjxi91ai9agsbqq2d0p5yl166vjqdwhd8f7zzsj6fc"))
-                (_ (unsupported-arch name (%current-system)))))))
-         ("source"
-          ,(origin
-             (method url-fetch)
-             (uri (string-append
-                   +geth-url-base+
-                   (geth-directory (%current-system) version commit-hash)
-                   ".tar.gz"))
-             (sha256
-              (match (%current-system)
-                ;; To update the hashes go to https://geth.ethereum.org/downloads/
-                ;; then download the alltools files for the archs, and then run
-                ;; guix hash geth-linux-amd64-1.10.15-8be800ff.tar.gz
-                ("i686-linux"
-                 (base32
-                  "05pbyc2wwqla262r09iwv506mfwih31i7ln5zyiy82hkvbdv8d4n"))
-                ("x86_64-linux"
-                 (base32
-                  "1kljbr3ks2dn6jd87k7l0xaasbk82rrxmaxjkm2vy7cvaxwaq0cw"))
-                ("aarch64-linux"
-                 (base32
-                  "19100yqrd7z8f9cga4a52hygv93wn3syhi7ix4hi9km34v1qi89d"))
-                (_ (unsupported-arch name (%current-system)))))))))
-
+       (list gnupg
+             patchelf))
       (supported-systems '("x86_64-linux" "i686-linux" "aarch64-linux"))
-
       (home-page "https://geth.ethereum.org/")
       (synopsis "Official Go implementation of the Ethereum protocol")
       (description
