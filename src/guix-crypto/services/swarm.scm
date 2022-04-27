@@ -1,4 +1,4 @@
-;;; Copyright © 2021 Attila Lendvai <attila@lendvai.name>
+;;; Copyright © 2022 Attila Lendvai <attila@lendvai.name>
 ;;;
 ;;; This file is part of guix-crypto, a channel for Guix.
 ;;;
@@ -14,6 +14,10 @@
 ;;;
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
+
+;; TODO
+;; - Use XDG_STATE_HOME for log files to support non-root shepherd?
+;;   - https://issues.guix.gnu.org/53781
 
 (define-module (guix-crypto services swarm)
   #:use-module (guix-crypto utils)
@@ -175,6 +179,7 @@ nodes should join.  Defaults to swarm/mainnet.")
 @code{clef} binary).")
   (node-count            (non-negative-integer 1)
    "How many Bee nodes should be started.")
+  ;; TODO rename to shepherd-requirement
   (additional-service-requirements
    (list '())
    "Guix service names that are appended to the REQUIREMENT field of each \
@@ -331,10 +336,8 @@ a local Gnosis chain node instance, then you can add its name here.")
                           (list (string-append "HOME=" #$data-dir)
                                 (string-append "PATH=" path)
                                 (string-append "CLEF_PASSWORD="
-                                               (call-with-input-file
-                                                   #$(clef-password-file swarm-name)
-                                                 (lambda (port)
-                                                   (get-string-all port))))
+                                               (read-file-to-string
+                                                #$(clef-password-file swarm-name)))
                                 "LC_ALL=en_US.UTF-8")))
 
                        ;; We need to do this here, because we must not return
@@ -401,9 +404,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                         ;; at clef's service start time. Hence the extra round to
                         ;; pass it as an env variable at our own start time.
                         (let ((eth-address (when #$clef-signer-enable
-                                             (call-with-input-file #$account-file
-                                               (lambda (port)
-                                                 (get-string-all port)))))
+                                             (read-file-to-string #$account-file)))
                               (cmd (list #$(file-append bee "/bin/bee")
                                          "--config" #$config-file
                                          "start")))
@@ -429,7 +430,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                             (string-append "BEE_SWAP_ENDPOINT="    #$swap-endpoint)
                             (string-append "BEE_RESOLVER_OPTIONS=" #$resolver-options)
                             (string-append "BEE_CLEF_SIGNER_ETHEREUM_ADDRESS="
-                                           eth-address)
+                                           (or eth-address ""))
                             "LC_ALL=en_US.UTF-8"))))))))
           (stop #~(make-kill-destructor))))))))
 
