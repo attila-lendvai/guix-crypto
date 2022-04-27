@@ -7,8 +7,8 @@ eligible for Guix proper.
 
 * Status
 This channel is still pretty much *in the process of being established*.
-Although it's less and less likely, but it may still receive some =git push
--f='s until this notice is deleted.
+Although with each day it's less and less likely, but it may still receive some
+=git push -f='s until this notice is deleted.
 
 If you add it to your Guix in this early phase, then you may need to do an
 occasional =guix pull --allow-downgrades=, and may even need to update the
@@ -39,7 +39,31 @@ introduction/, typically to =/etc/guix/channels.scm=:
 
 For the time being, this channel depends on [[https://gitlab.com/nonguix/nonguix][Nonguix]] (for
 =binary-build-system=), therefore pulling from this channel will also
-pull the Nonguix channel.
+pull the Nonguix channel. See [[https://gitlab.com/nonguix/nonguix/-/issues/164][this]] and [[https://gitlab.com/nonguix/nonguix/-/issues/36][this]] for more details.
+
+** Swarm
+
+The snippet below is an example of how to start [[https://docs.ethswarm.org/][Bee]] nodes.
+
+#+BEGIN_SRC scheme
+  (services
+   ...
+   (let ((gnosis-ipc-path "/var/lib/openethereum/gnosis/gnosis.ipc"))
+     (list
+       (swarm-service
+        #:node-count           2
+        #:resolver-options     "[optional ethereum mainnet endpoint for ENS]"
+        #:swap-endpoint        gnosis-ipc-path
+        #:swap-initial-deposit 0 ; start nodes without any BZZ
+        #:dependencies         (list gnosis-service-name))
+
+       (openethereum-service
+        #:service-name    gnosis-service-name
+        #:user            "gnosis"
+        #:group           "swarm-mainnet"
+        #:chain           "xdai"
+        #:ipc-path        gnosis-ipc-path))))
+#+END_SRC
 
 * Why
 [[https://guix.gnu.org/][Guix proper]] doesn't accept binary packages, and compiling
@@ -58,5 +82,5 @@ Until this ideal world is reached, this channel will serve as a home for crypto
 related binary Guix packages and services that download, authenticate, and patch
 the official binary releases to run on Guix.
 
-Further reading on this topic:
+Further readings on this topic:
 - [[https://github.com/ethereum/go-ethereum/issues/18292][go-ethereum]]
