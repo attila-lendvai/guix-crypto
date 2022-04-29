@@ -54,6 +54,16 @@
        (define* name val)
        (export name)))))
 
+(define-public default-module-filter
+  (match-lambda
+    (('guix 'config) #f)
+    (('guix _ ...) #t)
+    (('gnu _ ...) #t)
+    (('nongnu _ ...) #t)
+    (('nonguix _ ...) #t)
+    (('guix-crypto _ ...) #t)
+    (_ #f)))
+
 (define-public (ensure-string obj)
   (if (string? obj)
       obj

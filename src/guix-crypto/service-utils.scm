@@ -68,19 +68,9 @@
           ;; This %default-modules is from Shepherd.
           %default-modules))
 
-(define-public default-service-module-filter
-  (match-lambda
-    (('guix 'config) #f)
-    (('guix _ ...) #t)
-    (('gnu _ ...) #t)
-    (('nongnu _ ...) #t)
-    (('nonguix _ ...) #t)
-    (('guix-crypto _ ...) #t)
-    (_ #f)))
-
 (define-syntax-rule (with-service-gexp-modules modules body ...)
   (with-imported-modules (source-module-closure
                           (append +default-service-modules+
                                   modules)
-                          #:select? default-service-module-filter)
+                          #:select? default-module-filter)
     body ...))
