@@ -15,9 +15,6 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
-;; TODO add script to update version
-;; TODO check the signature at build
-
 (define-module (guix-crypto packages swarm)
   #:use-module (guix-crypto package-utils)
   #:use-module (guix diagnostics)
@@ -34,55 +31,40 @@
   #:use-module (gnu packages gcc)
   #:use-module (gnu packages gnupg)
   #:use-module (nonguix build-system binary)
-  #:use-module (ice-9 match))
+  #:use-module (ice-9 match)
+  #:use-module (srfi srfi-1))
 
 (define-public bee-binary
-  (let ((version "1.5.1"))
+  (let ((version "1.5.1")
+        (hashes (read-module-relative-file "bee-binary.hashes")))
     (package
       (name "bee-binary")
       (version version)
-      (source #false) ; see below
+      (source (origin
+                (method url-fetch)
+                (uri (bee-release-uri (current-system-as-go-system) version))
+                (sha256 (base32 (or (assoc-ref hashes (%current-system))
+                                    (unsupported-arch name (%current-system)))))))
       (build-system binary-build-system)
       (arguments
        `(#:install-plan `(("bee" "bin/"))
-         #:strip-binaries? #false          ; The less we modify, the better.
+         #:strip-binaries? #false       ; The less we modify, the better.
          #:phases
          (modify-phases %standard-phases
            (replace 'unpack
              (lambda* (#:key inputs #:allow-other-keys)
                (copy-file (assoc-ref inputs "source") "bee")
                (chmod "bee" #o555)))
-           (add-after 'build 'check
+           (add-after 'patchelf 'check
              (lambda* (#:key (tests? #t) #:allow-other-keys)
                (when tests?
                  ;; At the time of this writing binary-build-system does not
                  ;; support cross builds. When it will, it will hopefully
                  ;; declare #:tests #f and this will keep working in cross
                  ;; builds.
-                 (invoke "./bee" "--help")))))))
-      (inputs
-       `(("source"
-          ,(origin
-             (method url-fetch)
-             (uri (github-download-link
-                   "ethersphere" "bee" version
-                   (string-append "bee-"
-                                  (guix-system-name->go-system-name
-                                   name (%current-system)))))
-             (sha256
-              ;; To update these go to https://github.com/ethersphere/bee/releases/
-              ;; then download the relevant files, and then `guix hash` them.
-              (match (%current-system)
-                ("x86_64-linux"
-                 (base32 "002bdp5j3wq3cxkzyh149dlxxa9f1wjrl10lf2d7jdgknhfg5ddz"))
-                ("i686-linux"
-                 (base32 "06xwpkwmpd93aqppss4ijky61bhga3sbanmy06hxykpbpx9wj1k8"))
-                ("aarch64-linux"
-                 (base32 "146nrw2m2103iyw5yj9gl5lp8j1w67xlab4ky46bkhm2m8sjjdwq"))
-                (_ (unsupported-arch name (%current-system)))))))))
-
-      (supported-systems '("x86_64-linux" "i686-linux" "aarch64-linux"))
-
+                 (invoke "./bee" "version")))))))
+      (inputs (list glibc))
+      (supported-systems (map first hashes))
       (home-page "https://www.ethswarm.org/")
       (synopsis "Bee is a Swarm client implemented in Go")
       (description

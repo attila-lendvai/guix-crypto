@@ -35,49 +35,34 @@
   #:use-module (gnu packages gcc)
   #:use-module (gnu packages gnupg)
   #:use-module (nonguix build-system binary)
-  #:use-module (ice-9 match))
-
-;; https://apt.z.cash/zcash.asc captured at 2022-04-20.
-(define +zcash-key-fingerprint+
-  "F9563107CE889AB60386A3B570C830C67EB9DCB4")
-
-(define* (zcash-binary-origin version hash #:optional (suffix ""))
-  (let ((file-name (simple-format #f "zcash-~A-linux64-debian-bullseye.tar.gz~A"
-                                  version suffix)))
-    (origin
-     (method url-fetch)
-     (uri (string-append "https://z.cash/downloads/" file-name))
-     (file-name file-name)
-     (sha256 hash))))
+  #:use-module (ice-9 match)
+  #:use-module (srfi srfi-71))
 
 (define-public zcash-binary
-  (let* ((version "4.7.0")
-         (signing-key (local-file "zcash-signing-key.asc"))
-         (signature (zcash-binary-origin
-                     version
-                     (match (%current-system)
-                       ("x86_64-linux"
-                        (base32 "11mpfgrb5d4jm72mc5xwqlvpml0qd0xcn48bji36cmf47alk6b8x"))
-                       (_ (unsupported-arch name (%current-system))))
-                     ".asc")))
+  ;; Note: use bin/geth-update-helper.scm to update the hashes
+  (let ((hashes (read-module-relative-file "zcash-binary.hashes")))
     (package
       (name "zcash-binary")
-      (version version)
-      (source (zcash-binary-origin
-               version
-               (match (%current-system)
-                 ("x86_64-linux"
-                  (base32 "1c6hfli4wbdw2im51ak1yfg59xnsv33qsiilr24nygbxdp6p1awm"))
-                 (_ (unsupported-arch name (%current-system))))))
+      (version "4.7.0")
+      (source
+       (let* ((uri file-name
+                   (zcash-release-uri (guix-system-name->zcash-system-name (%current-system))
+                                      version)))
+         (origin
+           (method url-fetch)
+           (uri uri)
+           (file-name file-name)
+           (sha256 (base32 (or (assoc-ref hashes (%current-system))
+                               (unsupported-arch name (%current-system))))))))
       (build-system binary-build-system)
       (arguments
        (list
         #:imported-modules (source-module-closure
-                            `((guix-crypto build-utils)
+                            `((guix-crypto utils)
                               ,@%binary-build-system-modules)
                             #:select? default-module-filter)
         #:modules '((guix build utils)
-                    (guix-crypto build-utils)
+                    (guix-crypto utils)
                     (nonguix build binary-build-system))
         #:install-plan ''(("bin/zcash-cli"          "bin/")
                           ("bin/zcashd"             "bin/")
@@ -92,16 +77,19 @@
                            ("bin/zcash-tx"           ("gcc" "glibc")))
         #:phases
         #~(modify-phases %standard-phases
-            (add-before 'unpack 'check-signatures
-              (lambda* (#:key source #:allow-other-keys)
-                (verify-gpg-signature #$+zcash-key-fingerprint+
-                                      #$signing-key
-                                      #$signature
-                                      source)))
             (replace 'unpack
               (lambda* (#:key source #:allow-other-keys)
                 (invoke "tar" "--strip-components=1" "-xzvf"
-                        source))))))
+                        source)))
+            (add-after 'patchelf 'check
+              (lambda* (#:key (tests? #t) #:allow-other-keys)
+                (when tests?
+                  ;; At the time of this writing binary-build-system does not
+                  ;; support cross builds. When it will, it will hopefully
+                  ;; declare #:tests #f and this will keep working in cross
+                  ;; builds.
+                  (invoke "./bin/zcash-cli" "--version")
+                  (invoke "./bin/zcashd" "--version")))))))
       (native-inputs
        (list gnupg
              patchelf))

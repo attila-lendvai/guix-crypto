@@ -16,24 +16,96 @@
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (guix-crypto package-utils)
+  #:use-module (guix-crypto utils)
   #:use-module (guix build utils)
   #:use-module (guix diagnostics)
+  #:use-module (guix packages)
   #:use-module (guix ui)
-  #:use-module (ice-9 match))
+  #:use-module (ice-9 match)
+  #:export (read-module-relative-file))
+
+(define (%read-module-relative-file module filename)
+  (with-input-from-file
+      (or (search-path %load-path
+                       (string-append (dirname (module-filename module))
+                                      "/" filename))
+          (error "%read-module-relative-file failed for" filename))
+    read))
+
+(define-syntax read-module-relative-file
+  (lambda (syn)
+    (syntax-case syn ()
+      ((_ filename)
+       (with-syntax
+           ;; Read the file at compile time and macroexpand to the first form.
+           ((form (%read-module-relative-file (current-module)
+                                              (syntax->datum #'filename))))
+         #''form)))))
 
 (define-public (unsupported-arch package-name system)
   (raise (formatted-message
           (G_ "The package '~a' does not support the Guix system '~a'")
           package-name system)))
 
-(define-public (guix-system-name->go-system-name package-name system)
+(define-public (guix-system-name->go-system-name system)
   (match system
     ("x86_64-linux"      "linux-amd64")
     ("i686-linux"        "linux-386")
     ("aarch64-linux"     "linux-arm64")
-    (_ (unsupported-arch package-name system))))
+    ;; some of the rest may be wrong
+    ("armhf-linux"       "linux-arm")
+    ("mips64el-linux"    "linux-mips64le")
+    ("powerpc64le-linux" "linux-ppc64le")
+    ("powerpc-linux"     "linux-ppc")
+    ("riscv64-linux"     "linux-riscv64")))
 
-(define-public (github-download-link org-name repo-name version file-name)
-  (string-append
-   "https://github.com/" org-name "/" repo-name "/releases/download/"
-   "v" version "/" file-name))
+(define-public (current-system-as-go-system)
+  (guix-system-name->go-system-name (%current-system)))
+
+(define-public (github-release-uri org-name repo-name version file-name)
+  (values (string-append
+           "https://github.com/" org-name "/" repo-name "/releases/download/"
+           "v" version "/" file-name)
+          file-name))
+
+(define-public* (geth-release-file-name arch version commit-hash
+                                        #:key (suffix ""))
+  (string-append "geth-alltools-"
+                 arch
+                 "-"
+                 version "-"
+                 commit-hash
+                 ".tar.gz"
+                 suffix))
+
+(define-public* (geth-release-uri arch version commit-hash
+                                  #:key (suffix ""))
+  (let ((file-name (geth-release-file-name arch version commit-hash
+                                           #:suffix suffix)))
+    (values (string-append "https://gethstore.blob.core.windows.net/builds/"
+                           file-name)
+            file-name)))
+
+(define-public* (bee-release-file-name arch)
+  (string-append "bee-" arch))
+
+(define-public* (bee-release-uri arch version)
+  (github-release-uri "ethersphere" "bee" version
+                      (bee-release-file-name arch)))
+
+(define-public (guix-system-name->zcash-system-name name)
+  (match name
+    ("x86_64-linux"      "linux64")))
+
+(define-public* (zcash-release-file-name arch version
+                                         #:key (suffix ""))
+  (string-append "zcash-"
+                 version "-"
+                 arch
+                 "-debian-bullseye.tar.gz"
+                 suffix))
+
+(define-public* (zcash-release-uri arch version #:key (suffix ""))
+  (let ((file-name (zcash-release-file-name arch version #:suffix suffix)))
+    (values (string-append "https://z.cash/downloads/" file-name)
+            file-name)))

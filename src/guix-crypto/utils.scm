@@ -18,8 +18,8 @@
 ;;;
 ;;; This file does not bring in a large transitive closure of
 ;;; dependencies (i.e. no dependency on GEXP stuff), and thus can be
-;;; used in the Shephard sice of the code (e.g. in the service start
-;;; forms).
+;;; used in the Shephard side of the code (e.g. in the service start
+;;; forms), and also on the builder side.
 ;;;
 
 (define-module (guix-crypto utils)
@@ -27,14 +27,18 @@
   ;; 9fecf20fcf1bac764b3d812e07ed4a4a56be52a2 (which was released in Guile
   ;; 3.0.6). Prior to that it was only in (scheme base).
   #:use-module (guix build utils)
+  ;;#:use-module (guix build syscalls)
   #:use-module ((scheme base) #:select (call-with-port))
   #:use-module (system repl error-handling) ; from Guile
+  ;;#:use-module (rnrs io ports)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-19)
   #:use-module (srfi srfi-26)
+  #:use-module (srfi srfi-34)
   #:use-module (srfi srfi-71)
   #:use-module (ice-9 match)
   #:use-module (ice-9 ports)
+  #:use-module (ice-9 rdelim)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 format)
   #:export        ; Also note the extensive use of DEFINE-PUBLIC below
@@ -183,6 +187,26 @@ The current implementation does not support thunked and delayed fields."
   (call-with-input-file path
     (lambda (port)
       (get-string-all port))))
+
+;; (define-public (read-file-to-sexps path)
+;;   (let ((forms '()))
+;;     (with-input-from-file path
+;;       (lambda ()
+;;         (let loop ((form (read)))
+;;           (unless (eof-object? form)
+;;             (set! forms (cons form forms))
+;;             (loop (read))))))
+;;     (reverse! forms)))
+
+;; (define-public (read-file-to-lines path)
+;;   (let ((result '()))
+;;     (with-input-from-file path
+;;       (lambda ()
+;;         (let loop ((line (read-line)))
+;;           (when line
+;;             (set! result (cons line result))
+;;             (loop (read-line))))))
+;;     (reverse! result)))
 
 (define-public (chown-r uid gid . dirs)
   (for-each (if uid
