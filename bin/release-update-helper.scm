@@ -53,7 +53,15 @@
      ;; https://apt.z.cash/zcash.asc captured at 2022-05-05.
      ("3FE63B67F85EA808DE9B880E6DEF3BAF272766C0")
      ,guix-system-name->zcash-system-name
-     ("x86_64-linux"))))
+     ("x86_64-linux"))
+
+    ("nethermind-binary"
+     ,nethermind-release-uri
+     ;; Captured at 2022-05-01.
+     ("6942FB745ECE67D86CDA45704770A0C134E353C6"
+      "EECCEA1473108E3222D76722D39BE1DDCB6DA407")
+     ,guix-system-name->go-system-name
+     ("x86_64-linux" "aarch64-linux"))))
 
 (define (package-db-entry name)
   (assoc-ref +package-db+ name))

@@ -109,3 +109,18 @@
   (let ((file-name (zcash-release-file-name arch version #:suffix suffix)))
     (values (string-append "https://z.cash/downloads/" file-name)
             file-name)))
+
+(define-public* (nethermind-release-file-name arch version commit
+                                              #:key (suffix ""))
+  (string-append "nethermind-"
+                 arch "-"
+                 version "-"
+                 commit
+                 ".zip"
+                 suffix))
+
+(define-public* (nethermind-release-uri arch version commit #:key (suffix ""))
+  (let ((file-name (nethermind-release-file-name arch version commit #:suffix suffix)))
+    (values (string-append "https://nethdev.blob.core.windows.net/builds/"
+                           file-name)
+            file-name)))

@@ -31,6 +31,7 @@
   #:use-module (gnu packages bootstrap)
   #:use-module (gnu packages compression)
   #:use-module (gnu packages elf)
+  #:use-module (gnu packages icu4c)
   #:use-module (gnu packages gcc)
   #:use-module (gnu packages gnupg)
   #:use-module (nonguix build-system binary)
@@ -47,11 +48,15 @@
       (name "geth-binary")
       (version version)
       (source
-       (geth-release-origin
-        version
-        (base32 (or (assoc-ref hashes (%current-system))
-                    (unsupported-arch name (%current-system))))
-        commit-hash))
+       (let* ((uri file-name
+                   (geth-release-uri (current-system-as-go-system)
+                                     version commit-hash)))
+         (origin
+           (method url-fetch)
+           (uri uri)
+           (file-name file-name)
+           (sha256 (base32 (or (assoc-ref hashes (%current-system))
+                               (unsupported-arch name (%current-system))))))))
       (outputs '("out" "clef" "evm"))
       (build-system binary-build-system)
       (arguments
@@ -139,4 +144,101 @@ censorship, fraud or third party interference.")
        "OpenEthereum’s goal is to be the fastest, lightest, and most secure
 Ethereum client.  We are developing OpenEthereum using the cutting-edge Rust
 programming language.")
+      (license license:gpl3+))))
+
+(define-public nethermind-binary
+  (let* ((version "1.12.8")
+         (commit "2d3dd48")
+         ;; Note: use bin/geth-update-helper.scm to update the hashes
+         (hashes (read-module-relative-file "nethermind-binary.hashes")))
+    (package
+      (name "nethermind-binary")
+      (version version)
+      (source
+       (let* ((uri file-name
+                   (nethermind-release-uri
+                    ;; Strictly speaking, this is wrong, because it's
+                    ;; not written in golang, but it matches.
+                    (current-system-as-go-system)
+                    version commit)))
+         (origin
+           (method url-fetch)
+           (uri uri)
+           (file-name file-name)
+           (sha256 (base32 (or (assoc-ref hashes (%current-system))
+                               (unsupported-arch name (%current-system))))))))
+      (build-system binary-build-system)
+      (arguments
+       (let ((share-dir (string-append "/share/" name "-" version "/")))
+         (list
+          #:imported-modules (source-module-closure
+                              `((guix-crypto utils)
+                                ,@%binary-build-system-modules)
+                              #:select? default-module-filter)
+          #:modules '((guix build utils)
+                      (guix-crypto utils)
+                      (nonguix build binary-build-system))
+          ;; We install the binaries into the share-dir, so that they can find
+          ;; the necessary files relative to the binary's path. They are
+          ;; symlinked into the bin/ dir in a separate phase below.
+          #:install-plan `'(("Nethermind.Cli"       ,share-dir)
+                            ("Nethermind.Launcher"  ,share-dir)
+                            ("Nethermind.Runner"    ,share-dir)
+                            ("plugins"   ,share-dir)
+                            ("configs"   ,share-dir)
+                            ("chainspec" ,share-dir))
+          #:strip-binaries? #false      ; The less we modify, the better.
+          #:patchelf-plan (let ((libs '("glibc" "gcc" "zlib" "icu4c")))
+                            `'(("Nethermind.Cli"      ,libs)
+                               ("Nethermind.Launcher" ,libs)
+                               ("Nethermind.Runner"   ,libs)))
+          #:phases
+          #~(modify-phases %standard-phases
+              (replace 'unpack
+                ;; The vanilla unpack arbitrarily enters a subdir.
+                ;; See: https://issues.guix.gnu.org/55270
+                (lambda* (#:key source #:allow-other-keys)
+                  (mkdir "extracted")   ; this is only for aesthetics
+                  (chdir "extracted")
+                  (invoke "unzip" source)))
+              (add-after 'patchelf 'check
+                (lambda* (#:key (tests? #t) #:allow-other-keys)
+                  (when tests?
+                    ;; At the time of this writing binary-build-system does not
+                    ;; support cross builds. When it will, it will hopefully
+                    ;; declare #:tests #f and this will keep working in cross
+                    ;; builds.
+                    (setenv "DOTNET_BUNDLE_EXTRACT_BASE_DIR" (getenv "TMPDIR"))
+                    (invoke "./Nethermind.Runner" "--version"))))
+              (add-after 'install 'symlink-binaries
+                (lambda* (#:key outputs #:allow-other-keys)
+                  (let* ((out (assoc-ref outputs "out"))
+                         (share (string-append out #$share-dir)))
+                    (mkdir (string-append out "/bin/"))
+                    (for-each
+                     (lambda (binary)
+                       (let ((source (string-append share binary))
+                             (target (string-append out "/bin/" binary)))
+                         (format #t "~A -> ~A~%" source target)
+                         (symlink source target)))
+                     '("Nethermind.Cli"
+                       "Nethermind.Launcher"
+                       "Nethermind.Runner")))))
+              ;; TODO the NETHERMIND_PLUGINSDIRECTORY var doesn't work
+              ;; if it worked, we could put the binaries into bin/ and wrap them.
+              ;; not sure whether it would be any better, though...
+              ;; (add-after 'install 'wrap
+              ;;   (lambda* (#:key outputs #:allow-other-keys)
+              ;;     (let ((out (assoc-ref outputs "out")))
+              ;;       (wrap-program (string-append out "/bin/Nethermind.Runner")
+              ;;         `("NETHERMIND_PLUGINSDIRECTORY" =
+              ;;           (,(string-append out #$share-dir "plugins")))))))
+              ))))
+      (native-inputs (list unzip patchelf))
+      (inputs (list glibc (list gcc "lib") zlib icu4c))
+      (supported-systems (map first hashes))
+      (home-page "https://nethermind.io/")
+      (synopsis "Ethereum client based on .NET Core")
+      (description "The official Nethermind binary release, patched to
+work on Guix.")
       (license license:gpl3+))))
