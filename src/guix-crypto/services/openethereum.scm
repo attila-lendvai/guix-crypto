@@ -35,7 +35,7 @@
   #:use-module (gnu packages bash)
   #:use-module ((gnu packages admin) #:select (shadow))
   #:use-module (gnu services)
-  #:use-module (gnu services configuration)
+  #:use-module (gnu services configuration2)
   #:use-module (gnu services shepherd)
   #:use-module (gnu system shadow)
   #:use-module (gnu system accounts)
