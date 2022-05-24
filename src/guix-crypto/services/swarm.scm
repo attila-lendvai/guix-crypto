@@ -695,7 +695,9 @@ number of times, in any random moment."
     (list (service-extension shepherd-root-service-type
                              make-swarm-shepherd-services)
           (service-extension account-service-type
-                             make-swarm-user-accounts)))))
+                             make-swarm-user-accounts)))
+   (description "Runs the requested number of Bee instances, and optionally an \
+Ethereum Clef instance as a group of Shepherd services.")))
 
 (define* (swarm-service #:key
                         (node-count 1)

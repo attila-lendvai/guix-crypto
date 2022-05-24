@@ -301,7 +301,8 @@ the same value you provided as CHAIN.")
     (list (service-extension shepherd-root-service-type
                              make-shepherd-service)
           (service-extension account-service-type
-                             make-unix-user-accounts)))))
+                             make-unix-user-accounts)))
+   (description "Runs an OpenEthereum instance as a Shepherd service.")))
 
 (define* (openethereum-service #:key
                                (user                *unspecified*)
