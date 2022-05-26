@@ -619,24 +619,24 @@ number of times, in any random moment."
             (setenv "PATH" path)
             (with-log-directory log-dir
                                 ;; Log files are not visible to everyone.
-                                (ensure-directories/rec #$bee-user #$swarm-group #o2770
-                                                        log-dir)
+              (ensure-directories/rec #$bee-user #$swarm-group #o2770
+                                      log-dir)
 
-                                ;; Ensure as root that the service.log file exists, and it is group
-                                ;; writable (because both the bee and the clef service code logs into
-                                ;; it).
-                                (let ((path (service-log-filename)))
-                                  (close-port (open-file path "a"))
-                                  (chmod path #o664))
+              ;; Ensure as root that the service.log file exists, and it is group
+              ;; writable (because both the bee and the clef service code logs into
+              ;; it).
+              (let ((path (service-log-filename)))
+                (close-port (open-file path "a"))
+                (chmod path #o664))
 
-                                (log.dribble "A SWARM-SERVICE-GEXP is running for swarm ~S" swarm-name)
+              (log.dribble "A SWARM-SERVICE-GEXP is running for swarm ~S" swarm-name)
 
-                                (let ((dir #$(swarm-data-directory swarm-name)))
-                                  ;; The data dir is visible to everyone.
-                                  (ensure-directories 0 #$swarm-group #o2770 dir)
-                                  (log.debug "Ensured directory ~S" dir))
+              (let ((dir #$(swarm-data-directory swarm-name)))
+                ;; The data dir is visible to everyone.
+                (ensure-directories 0 #$swarm-group #o2770 dir)
+                (log.debug "Ensured directory ~S" dir))
 
-                                #$body-gexp))))))
+              #$body-gexp))))))
 
 (define (make-swarm-user-accounts service-config)
   (set! service-config (apply-config-defaults service-config))

@@ -197,12 +197,10 @@ the same value you provided as CHAIN.")
 (define (make-shepherd-service config)
   (set! config (apply-config-defaults config))
   (with-service-gexp-modules '()
-    (match-record
-        config <openethereum-service-configuration>
-      (user group service-name openethereum openethereum-configuration)
-      (match-record
-          openethereum-configuration <openethereum-configuration>
-        (chain base-path no-ipc ipc-path)
+    (match-record config <openethereum-service-configuration>
+        (user group service-name openethereum openethereum-configuration)
+      (match-record openethereum-configuration <openethereum-configuration>
+          (chain base-path no-ipc ipc-path)
         (list
          (shepherd-service
           (documentation (simple-format #f "An openethereum node connecting to chain '~A'"

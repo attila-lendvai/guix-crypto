@@ -127,11 +127,11 @@ The current implementation does not support thunked and delayed fields."
   (call-with-error-handling
    (lambda ()
      (call-with-port (open-file (service-log-filename) "a")
-                     (lambda (port)
-                       (display (date->string (current-date) "~5") port)
-                       (display #\space port)
-                       (apply format port format-string args)
-                       (newline port))))
+       (lambda (port)
+         (display (date->string (current-date) "~5") port)
+         (display #\space port)
+         (apply format port format-string args)
+         (newline port))))
    #:on-error
    (lambda (error . args)
      (let ((port (current-error-port)))
