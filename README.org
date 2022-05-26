@@ -1,29 +1,24 @@
 # -*- mode: org; coding: utf-8-unix; fill-column: 80 -*-
 
 * What
-This is a package repository to be used a channel for the [[https://www.gnu.org/software/guix/][GNU Guix]] package
-manager. It is a home for crypto and blockchain related packages that are not
-eligible for Guix proper.
+This is a channel for the [[https://www.gnu.org/software/guix/][GNU Guix]] package manager. It is a home for crypto and
+blockchain related packages and services that are not eligible for Guix proper.
 
 * Status
-This channel is still pretty much *in the process of being established*.
-Although with each day it's less and less likely, but it may still receive some
-=git push -f='s until this notice is deleted.
+This channel is established and is regularly updated. PR's are welcome
+otherwise.
 
-If you add it to your Guix in this early phase, then you may need to do an
-occasional =guix pull --allow-downgrades=, and may even need to update the
-channel introduction in your local channel config.
-
-For now it contains packages and services to install and run [[https://www.ethswarm.org/][Swarm]] Bee nodes,
-and [[https://openethereum.org/][OpenEthereum]] instances.
+For now it mostly contains binary packages and service code to install and run
+[[https://www.ethswarm.org/][Swarm]] Bee nodes, and the necessary support services (an Ethereum node, a Clef
+wallet manager, etc).
 
 * Where
 The project's [[https://github.com/attila-lendvai/guix-crypto][github page]] is the primary communication channel.
 
 * How
-This git repository is a Guix channel that can be added to your
-=channels.scm= files by inserting the following /channel
-introduction/, typically to =/etc/guix/channels.scm=:
+This git repository is a Guix channel that can be added to the =channels.scm=
+file of your [[https://guix.gnu.org/][Guix System]] by inserting the following /channel introduction/,
+typically into =/etc/guix/channels.scm=:
 
 #+BEGIN_SRC scheme
   (channel
@@ -37,50 +32,54 @@ introduction/, typically to =/etc/guix/channels.scm=:
       "69DA 8D74 F179 7AD6 7806  EE06 FEFA 9FE5 5CF6 E3CD"))))
 #+END_SRC
 
-For the time being, this channel depends on [[https://gitlab.com/nonguix/nonguix][Nonguix]] (for
-=binary-build-system=), therefore pulling from this channel will also
-pull the Nonguix channel. See [[https://gitlab.com/nonguix/nonguix/-/issues/164][this]] and [[https://gitlab.com/nonguix/nonguix/-/issues/36][this]] for more details.
+For the time being, this channel depends on [[https://gitlab.com/nonguix/nonguix][Nonguix]] (for the
+=binary-build-system=), therefore pulling from this channel will also pull and
+compile the Nonguix channel. See [[https://gitlab.com/nonguix/nonguix/-/issues/164][this]] and [[https://gitlab.com/nonguix/nonguix/-/issues/36][this]] for further details.
 
 ** Swarm
 
 The snippet below is an example of how to start [[https://docs.ethswarm.org/][Bee]] nodes.
 
 #+BEGIN_SRC scheme
+(operating-system
+  ...
   (services
    ...
-   (let ((gnosis-ipc-path "/var/lib/openethereum/gnosis/gnosis.ipc"))
+   (let ((gnosis-ipc-path "/var/lib/openethereum/gnosis/gnosis.ipc")
+         (gnosis-service-name 'gnosis))
      (list
+       ;; Start 2 Bee instances, and a Clef (go-ethereum) account manager.
        (swarm-service
-        #:node-count           2
+        #:node-count           2 ; new accounts are created as needed 
         #:resolver-options     "[optional ethereum mainnet endpoint for ENS]"
         #:swap-endpoint        gnosis-ipc-path
         #:swap-initial-deposit 0 ; start nodes without any BZZ
         #:dependencies         (list gnosis-service-name))
 
+       ;; Start an OpenEthereum node.
        (openethereum-service
         #:service-name    gnosis-service-name
         #:user            "gnosis"
         #:group           "swarm-mainnet"
         #:chain           "xdai"
-        #:ipc-path        gnosis-ipc-path))))
+        #:ipc-path        gnosis-ipc-path)))))
 #+END_SRC
 
 * Why
-[[https://guix.gnu.org/][Guix proper]] doesn't accept binary packages, and compiling
-crypto/blockchain related projects is not trivial. Any mistake at
-compilation (e.g. by using a different version of a dependency) may
-introduce bugs into the final executable file that could result in losing
-money.
+[[https://guix.gnu.org/][Guix proper]] doesn't accept binary packages, and compiling crypto/blockchain
+related projects properly is not trivial. Any mistake at compilation (e.g. by
+using a different version of a dependency) may introduce bugs into the final
+executable file that could result in losing money.
 
-Ideally, these mission critical projects would all be /reproducible
+Ideally, these mission-critical projects would all be /reproducible
 build/, even across OS installations. Then we could have source-based
 packages in Guix proper to build them, and then authenticate the
 resulting binaries by comparing them to the officially released
 binaries, and their singatures.
 
 Until this ideal world is reached, this channel will serve as a home for crypto
-related binary Guix packages and services that download, authenticate, and patch
-the official binary releases to run on Guix.
+related Guix packages and services that download, authenticate, and patch
+the official binary releases to run on [[https://guix.gnu.org/][Guix System]].
 
 Further readings on this topic:
-- [[https://github.com/ethereum/go-ethereum/issues/18292][go-ethereum]]
+- go-ethereum [[https://github.com/ethereum/go-ethereum/issues/18292][GitHub issue]] on reproducible builds
