@@ -38,7 +38,8 @@ compile the Nonguix channel. See [[https://gitlab.com/nonguix/nonguix/-/issues/1
 
 ** Swarm
 
-The snippet below is an example of how to start [[https://docs.ethswarm.org/][Bee]] nodes.
+The snippet below is an example of how to start multiple [[https://docs.ethswarm.org/][Bee]] nodes that join a
+swarm. First, add these services to your =config.scm=:
 
 #+BEGIN_SRC scheme
 (operating-system
@@ -64,6 +65,16 @@ The snippet below is an example of how to start [[https://docs.ethswarm.org/][Be
         #:chain           "xdai"
         #:ipc-path        gnosis-ipc-path)))))
 #+END_SRC
+
+Afterwards:
+ - =guix system reconfigure config.scm= to apply the changes.
+ - =herd status= to see if services are running properly.
+ - =less /var/log/swarm/mainnet/bee-0.log= to check the logs of the Bee nodes.
+ - =less /var/log/openethereum/gnosis.log= to check the logs of the Gnosis node.
+ - =herd display-address bee-mainnet-0= to display the node's Ethereum address.
+
+You will need to fund your Bee nodes to join a swarm. Follow the instructions in
+the Bee logs and the [[https://docs.ethswarm.org/][official documentation]].
 
 * Why
 [[https://guix.gnu.org/][Guix proper]] doesn't accept binary packages, and compiling crypto/blockchain
