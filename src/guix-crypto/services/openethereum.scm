@@ -35,6 +35,7 @@
   #:use-module (gnu packages bash)
   #:use-module ((gnu packages admin) #:select (shadow))
   #:use-module (gnu services)
+  #:use-module (gnu services admin)
   #:use-module (gnu services configuration2)
   #:use-module (gnu services shepherd)
   #:use-module (gnu system shadow)
@@ -194,6 +195,9 @@ the same value you provided as CHAIN.")
   ;; TODO what if CHAIN is a path to a JSON file?
   (string->symbol (simple-format #f "openethereum-~A" chain)))
 
+(define-public (default-log-directory)
+  "/var/log/openethereum")
+
 (define (make-shepherd-service config)
   (set! config (apply-config-defaults config))
   (with-service-gexp-modules '()
@@ -210,7 +214,7 @@ the same value you provided as CHAIN.")
           (modules +default-service-modules+)
           (start
            (let ((path     (file-append coreutils "/bin"))
-                 (log-dir  "/var/log/openethereum"))
+                 (log-dir  (default-log-directory)))
              #~(lambda args
                  (setenv "PATH" #$path)
                  (with-log-directory #$log-dir
@@ -235,8 +239,8 @@ the same value you provided as CHAIN.")
                       cmd
                       #:user #$user
                       #:group #$group
-                      #:log-file (string-append (*log-directory*)
-                                                #$(simple-format #f "/~A.log" service-name))
+                      #:log-file (openethereum-log-filename (*log-directory*)
+                                                            #$service-name)
                       #:environment-variables
                       (list (string-append "HOME=" #$base-path)
                             (string-append "PATH=" #$path)
@@ -285,6 +289,19 @@ the same value you provided as CHAIN.")
          (comment (string-append "OpenEthereum service for chain '" chain "'"))
          (home-directory base-path)
          (shell (file-append shadow "/sbin/nologin"))))))))
+
+(define (make-openethereum-log-rotations service-config)
+  (set! service-config (apply-config-defaults service-config))
+  (match-record service-config <openethereum-service-configuration>
+      (service-name openethereum-configuration)
+    (let ((log-dir (default-log-directory)))
+      (list
+       (log-rotation
+        (files (list
+                (string-append log-dir "/service.log")
+                (openethereum-log-filename log-dir service-name)))
+        (frequency 'weekly)
+        (options '("rotate 8")))))))
 
 ;;
 ;; Interfacing with Guix
@@ -299,7 +316,9 @@ the same value you provided as CHAIN.")
     (list (service-extension shepherd-root-service-type
                              make-shepherd-service)
           (service-extension account-service-type
-                             make-unix-user-accounts)))
+                             make-unix-user-accounts)
+          (service-extension rottlog-service-type
+                             make-openethereum-log-rotations)))
    (description "Runs an OpenEthereum instance as a Shepherd service.")))
 
 (define* (openethereum-service #:key

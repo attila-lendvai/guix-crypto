@@ -121,6 +121,14 @@ The current implementation does not support thunked and delayed fields."
         (false-if-exception (display-backtrace (make-stack #t) port))))
     (string-append basedir "/service.log")))
 
+;; These are here because they are used in both the service code, and the
+;; service start GEXP.
+(define-public (bee-log-filename log-dir bee-index)
+  (simple-format #f "~A/bee-~A.log" log-dir bee-index))
+
+(define-public (openethereum-log-filename log-dir service-name)
+  (simple-format #f "~A/~A.log" log-dir service-name))
+
 (define-public (log.debug format-string . args)
   ;; WITH-OUTPUT-TO-FILE doesn't work here, because we need to
   ;; append, and it overwrites.

@@ -37,6 +37,7 @@
   #:use-module (gnu packages bash)
   #:use-module ((gnu packages admin) #:select (shadow))
   #:use-module (gnu services)
+  #:use-module (gnu services admin)
   #:use-module (gnu services configuration2)
   #:use-module (gnu services shepherd)
   #:use-module (gnu system shadow)
@@ -413,9 +414,8 @@ a local Gnosis chain node instance, then you can add its name here.")
                            cmd
                            #:user #$bee-user
                            #:group #$swarm-group
-                           #:log-file (string-append
-                                       (*log-directory*)
-                                       #$(simple-format #f "/bee-~A.log" bee-index))
+                           #:log-file (bee-log-filename (*log-directory*)
+                                                        #$bee-index)
                            #:directory #$data-dir
                            #:resource-limits
                            `((nofile ,#$(+ db-open-files-limit 4096)
@@ -681,6 +681,22 @@ number of times, in any random moment."
                 (home-directory (swarm-data-directory swarm-name))
                 (shell (file-append shadow "/sbin/nologin")))))))))
 
+(define (make-swarm-log-rotations service-config)
+  (set! service-config (apply-config-defaults service-config))
+  (match-record service-config <swarm-service-configuration>
+      (swarm node-count bee-configuration)
+    (match-record swarm <swarm>
+        ((name swarm-name))
+      (let ((log-dir (default-log-directory swarm-name)))
+        (list
+         (log-rotation
+          (files (cons*
+                  (string-append log-dir "/clef.log")
+                  (string-append log-dir "/service.log")
+                  (map (cut bee-log-filename log-dir <>)
+                       (iota node-count))))
+          (frequency 'weekly)
+          (options '("rotate 8"))))))))
 
 ;;
 ;; Interfacing with Guix
@@ -695,7 +711,9 @@ number of times, in any random moment."
     (list (service-extension shepherd-root-service-type
                              make-swarm-shepherd-services)
           (service-extension account-service-type
-                             make-swarm-user-accounts)))
+                             make-swarm-user-accounts)
+          (service-extension rottlog-service-type
+                             make-swarm-log-rotations)))
    (description "Runs the requested number of Bee instances, and optionally an \
 Ethereum Clef instance as a group of Shepherd services.")))
 
