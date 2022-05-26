@@ -191,12 +191,11 @@ the same value you provided as CHAIN.")
 ;;;
 ;;;
 ;;;
-(define-public (default-service-name chain)
-  ;; TODO what if CHAIN is a path to a JSON file?
-  (string->symbol (simple-format #f "openethereum-~A" chain)))
-
-(define-public (default-log-directory)
+(define (default-log-directory)
   "/var/log/openethereum")
+
+(define (openethereum-log-filename log-dir service-name)
+  (simple-format #f "~A/~A.log" log-dir service-name))
 
 (define (make-shepherd-service config)
   (set! config (apply-config-defaults config))
@@ -239,8 +238,7 @@ the same value you provided as CHAIN.")
                       cmd
                       #:user #$user
                       #:group #$group
-                      #:log-file (openethereum-log-filename (*log-directory*)
-                                                            #$service-name)
+                      #:log-file #$(openethereum-log-filename log-dir service-name)
                       #:environment-variables
                       (list (string-append "HOME=" #$base-path)
                             (string-append "PATH=" #$path)

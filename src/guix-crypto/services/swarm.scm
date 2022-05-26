@@ -259,6 +259,9 @@ a local Gnosis chain node instance, then you can add its name here.")
 (define-public (default-log-directory swarm-name)
   (string-append +service-log-directory+ swarm-name))
 
+(define-public (bee-log-filename log-dir bee-index)
+  (simple-format #f "~A/bee-~A.log" log-dir bee-index))
+
 (define +service-data-directory+ "/var/lib/swarm/")
 
 (define (swarm-data-directory swarm-name)
@@ -414,8 +417,8 @@ a local Gnosis chain node instance, then you can add its name here.")
                            cmd
                            #:user #$bee-user
                            #:group #$swarm-group
-                           #:log-file (bee-log-filename (*log-directory*)
-                                                        #$bee-index)
+                           #:log-file #$(bee-log-filename (default-log-directory swarm-name)
+                                                          bee-index)
                            #:directory #$data-dir
                            #:resource-limits
                            `((nofile ,#$(+ db-open-files-limit 4096)
