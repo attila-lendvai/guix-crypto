@@ -82,6 +82,7 @@
 (define-maybe integer)
 (define-maybe non-negative-integer)
 
+;; https://openethereum.github.io/Configuring-OpenEthereum
 (define-configuration openethereum-configuration
   ;; For simplicity the field names here are the same as the
   ;; OpenEthereum config entry names.
@@ -104,6 +105,14 @@ chain or a JSON file path.")
    "Disable the jsonrpc interface.")
   (no-ipc                (maybe-boolean)
    "Disable the file based IPC interface.")
+  (unsafe-expose         (boolean #false)
+   "")
+  (ws-interface          maybe-string "")
+  (ws-port               maybe-non-negative-integer "")
+  (ws-hosts              maybe-string "")
+  (jsonrpc-interface     maybe-string "")
+  (jsonrpc-port          maybe-non-negative-integer "")
+  (jsonrpc-hosts         maybe-string "")
   (enable-snapshotting   (maybe-boolean)
    "Create a snapshot every 5000 blocks that other nodes can download using warp syncing.")
   (ports-shift           (maybe-integer)
@@ -331,6 +340,7 @@ the same value you provided as CHAIN.")
                                (snapshot-peers      *unspecified*)
                                (enable-snapshotting *unspecified*)
                                (scale-verifiers     #true)
+                               (unsafe-expose       #false)
                                (no-ws               *unspecified*)
                                (no-jsonrpc          *unspecified*))
   (service openethereum-service-type
@@ -348,5 +358,6 @@ the same value you provided as CHAIN.")
               (snapshot-peers        snapshot-peers)
               (enable-snapshotting   enable-snapshotting)
               (scale-verifiers       scale-verifiers)
+              (unsafe-expose         unsafe-expose)
               (no-ws                 no-ws)
               (no-jsonrpc            no-jsonrpc))))))
