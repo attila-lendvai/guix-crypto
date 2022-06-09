@@ -50,8 +50,10 @@
   #:use-module (srfi srfi-171)
   #:use-module (ice-9 match)
   #:use-module (ice-9 format)
-  #:export (swarm-configuration
-            swarm-configuration?
+  #:export (swarm-service-configuration
+            swarm-service-configuration?
+            bee-configuration
+            bee-configuration?
             swarm-service-type
             swarm-service))
 
@@ -97,16 +99,16 @@
 ;;; Swarm Configuration
 ;;;
 (define-configuration/no-serialization swarm
-  (name                  (swarm-name) "")
-  (network-id            (maybe-non-negative-integer) "")
-  (clef-chain-id         (non-negative-integer) "")
-  (p2p-port-base         (non-negative-integer)
+  (name                  swarm-name "")
+  (network-id            maybe-non-negative-integer "")
+  (clef-chain-id         non-negative-integer "")
+  (p2p-port-base         non-negative-integer
    "Base number for the p2p ports of the Bee nodes.  Defaults to 1600 for \
 @code{mainnet} and 1900 for @code{testnet}, otherwise it must be specified.")
-  (api-port-base         (non-negative-integer)
+  (api-port-base         non-negative-integer
    "Base number for the api ports of the Bee nodes.  Defaults to 1700 for \
 @code{mainnet} and 2000 for @code{testnet}, otherwise it must be specified.")
-  (debug-api-port-base   (non-negative-integer)
+  (debug-api-port-base   non-negative-integer
    "Base number for the debug api ports of the Bee nodes. Defaults to 1800 \
 for @code{mainnet} and 2100 for @code{testnet}, otherwise it must be specified."))
 
@@ -152,15 +154,15 @@ symbols: @code{'silent}, @code{'error}, @code{'warn}, @code{'info}, \
   (resolver-options      (string "")
                          "A blockchain node endpoint to connect to for resolving ENS names.
 Normally it should be a node connected to the Ethereum mainnet.")
-  (swap-endpoint         (string) "A blockchain node endpoint to connect to.")
-  (swap-initial-deposit  (maybe-non-negative-integer) "")
+  (swap-endpoint         string "A blockchain node endpoint to connect to.")
+  (swap-initial-deposit  maybe-non-negative-integer "")
 
   (mainnet               (boolean #true) "")
   (network-id            (non-negative-integer 1) "")
-  (password-file         (maybe-string) "")
-  (data-dir              (string) "")
-  (clef-signer-endpoint  (maybe-string) "")
-  (extra-bee-config      (maybe-string)
+  (password-file         maybe-string "")
+  (data-dir              maybe-string "")
+  (clef-signer-endpoint  maybe-string "")
+  (extra-bee-config      maybe-string
                          "A string that will be appended as-is to the end of the generated \
 @code{bee.yml} files."))
 
@@ -171,7 +173,7 @@ Normally it should be a node connected to the Ethereum mainnet.")
   (swarm                 (swarm swarm/mainnet)
    "An instance of <swarm> that describes the parameters of the swarm the \
 nodes should join.  Defaults to swarm/mainnet.")
-  (bee-configuration     (bee-configuration) "")
+  (bee-configuration     bee-configuration "")
   ;; Packages
   (bee                   (file-like bee-binary)
                          "The Bee Guix package to use.")
@@ -188,19 +190,19 @@ Bee node's Shepherd service instance; i.e. here you can specify extra \
 dependencies for the start order of the services, e.g. if you are running \
 a local Gnosis chain node instance, then you can add its name here.")
   ;; Users and groups
-  (bee-user              (maybe-string)
+  (bee-user              maybe-string
                          "Unix user for the Bee processes in this swarm.")
-  (bee-user-id           (maybe-non-negative-integer)
+  (bee-user-id           maybe-non-negative-integer
                          "Unix uid for @code{bee-user}.")
   (bee-supplementary-groups (list '())
                             "Supplementary groups for the BEE-USER.")
-  (clef-user             (maybe-string)
+  (clef-user             maybe-string
                          "Unix user for the clef process in this swarm.")
-  (clef-user-id          (maybe-non-negative-integer)
+  (clef-user-id          maybe-non-negative-integer
                          "Unix uid for @code{clef-user}.")
-  (swarm-group           (maybe-string)
+  (swarm-group           maybe-string
                          "Unix group for the users in this swarm.")
-  (swarm-group-id        (maybe-non-negative-integer)
+  (swarm-group-id        maybe-non-negative-integer
                          "Unix gid for @code{swarm-group}."))
 
 (define (apply-config-defaults service-config)

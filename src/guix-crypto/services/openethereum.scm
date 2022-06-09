@@ -86,24 +86,24 @@
 (define-configuration openethereum-configuration
   ;; For simplicity the field names here are the same as the
   ;; OpenEthereum config entry names.
-  (chain                 (maybe-string)
+  (chain                 maybe-string
    "Which blockchain to connect to. It may be the name of a supported \
 chain or a JSON file path.")
-  (base-path             (maybe-string)
+  (base-path             maybe-string
    "Directory where the state is stored.")
-  (ipc-path              (maybe-string)
+  (ipc-path              maybe-string
    "File name of the IPC file.")
-  (identity              (maybe-string)
+  (identity              maybe-string
    "")
-  (scale-verifiers       (maybe-boolean)
+  (scale-verifiers       maybe-boolean
    "")
-  (warp-barrier          (maybe-non-negative-integer)
+  (warp-barrier          maybe-non-negative-integer
    "")
-  (no-ws                 (maybe-boolean)
+  (no-ws                 maybe-boolean
    "Disable the websocket interface.")
-  (no-jsonrpc            (maybe-boolean)
+  (no-jsonrpc            maybe-boolean
    "Disable the jsonrpc interface.")
-  (no-ipc                (maybe-boolean)
+  (no-ipc                maybe-boolean
    "Disable the file based IPC interface.")
   (unsafe-expose         (boolean #false)
    "")
@@ -113,19 +113,19 @@ chain or a JSON file path.")
   (jsonrpc-interface     maybe-string "")
   (jsonrpc-port          maybe-non-negative-integer "")
   (jsonrpc-hosts         maybe-string "")
-  (enable-snapshotting   (maybe-boolean)
+  (enable-snapshotting   maybe-boolean
    "Create a snapshot every 5000 blocks that other nodes can download using warp syncing.")
-  (ports-shift           (maybe-integer)
+  (ports-shift           maybe-integer
    "")
-  (bootnodes             (maybe-string)
+  (bootnodes             maybe-string
    "")
-  (nat                   (maybe-string)
+  (nat                   maybe-string
    "")
-  (max-peers             (maybe-integer)
+  (max-peers             maybe-integer
    "")
-  (min-peers             (maybe-integer)
+  (min-peers             maybe-integer
    "")
-  (snapshot-peers        (maybe-integer)
+  (snapshot-peers        maybe-integer
    ""))
 
 (define-configuration/no-serialization openethereum-service-configuration
@@ -139,20 +139,20 @@ chain or a JSON file path.")
   ;;
   ;; TODO validate it to be compatible with paths
   ;; TODO maybe rename to name
-  (service-name          (service-name)
+  (service-name          service-name
    "The name of this Guix service, a symbol. It will be used as the \
 PROVISION value of the Shepherd service, and as a path component \
 in the data and log directories. You typically want to use here \
 the same value you provided as CHAIN.")
-  (user                  (maybe-string)
+  (user                  maybe-string
    "Unix user for the service process.")
-  (user-id               (maybe-non-negative-integer)
+  (user-id               maybe-non-negative-integer
    "Unix uid for @code{user}.")
-  (group                 (maybe-string)
+  (group                 maybe-string
    "Unix group for @code{user} and the service processes.")
-  (group-id              (maybe-non-negative-integer)
+  (group-id              maybe-non-negative-integer
    "Unix gid for @code{group}.")
-  (openethereum-configuration (openethereum-configuration)
+  (openethereum-configuration openethereum-configuration
    "Configuration for the OpenEthereum binary."))
 
 ;; NOTE: We cannot easily write a config file for OE because it groups the
