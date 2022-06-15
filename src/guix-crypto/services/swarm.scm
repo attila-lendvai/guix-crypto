@@ -312,15 +312,14 @@ a local Gnosis chain node instance, then you can add its name here.")
          (start
           (let* ((data-dir     (clef-data-directory     swarm-name))
                  (keystore-dir (clef-keystore-directory swarm-name))
-                 (4byte.json   (upstream-bee-clef-file "/packaging/4byte.json"))
-                 (rules.js     (upstream-bee-clef-file "/packaging/rules.js"))
                  (start-script (local-file "swarm-clef-start-script"))
                  (cmd #~(list #$(file-append bash-minimal "/bin/bash")
                               #$start-script
                               (string-append #$geth:clef "/bin/clef")
                               #$data-dir #$keystore-dir
                               #$(number->string clef-chain-id)
-                              #$rules.js #$4byte.json)))
+                              #$(rules.js)
+                              #$(upstream-bee-clef-file "/packaging/4byte.json"))))
             ;; TODO it would be nice to get rid of the start shell script, but
             ;; i don't want to get into pipes and stuff in scheme when
             ;; upstream has already put together a shell script.
@@ -468,14 +467,15 @@ a local Gnosis chain node instance, then you can add its name here.")
                "1vg1mqzldfxc4agff0aw5a94453f22aj9a0grl4y0vs1bg5skcdd"))))))
     (file-append bee-clef-git relative-path)))
 
+(define (rules.js)
+  (upstream-bee-clef-file "/packaging/rules.js"))
+
 (define (clef-activation-gexp service-config)
   (match-record service-config <swarm-service-configuration>
       (swarm geth node-count bee-user clef-user swarm-group)
     (match-record swarm <swarm>
         ((name swarm-name))
-      (let ((4byte.json    (upstream-bee-clef-file "/packaging/4byte.json"))
-            (rules.js      (upstream-bee-clef-file "/packaging/rules.js"))
-            (data-dir      (clef-data-directory swarm-name))
+      (let ((data-dir      (clef-data-directory swarm-name))
             (keystore-dir  (clef-keystore-directory swarm-name)))
         #~(let* ((clef-pwd-file #$(clef-password-file swarm-name))
                  (clef-pw       (getpwnam #$clef-user))
@@ -566,7 +566,7 @@ $CLEF_PASSWORD
 EOF"))
                    (invoke-clef-cmd (build-clef-cmd
                                      "attest $(sha256sum "
-                                     #$rules.js
+                                     #$(rules.js)
                                      " | cut -d' ' -f1 | tr -d '\n') "
                                      ">/dev/null 2>&1 << EOF
 $CLEF_PASSWORD
