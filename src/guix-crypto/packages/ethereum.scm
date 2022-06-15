@@ -90,7 +90,11 @@
                                 (copy-file name (string-append target-dir "/" name))))))
                   (doit "geth" out)
                   (doit "clef" clef)
-                  (doit "evm"  evm)))))))
+                  (doit "evm"  evm))))
+            (add-after 'patchelf 'check
+              (lambda* (#:key (tests? #t) #:allow-other-keys)
+                (when tests?
+                  (invoke "./geth" "version")))))))
       (native-inputs (list gnupg patchelf))
       (inputs (list glibc))
       (supported-systems (map first hashes))
