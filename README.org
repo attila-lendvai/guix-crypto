@@ -5,8 +5,8 @@ This is a channel for the [[https://www.gnu.org/software/guix/][GNU Guix]] packa
 blockchain related packages and services that are not eligible for Guix proper.
 
 * Status
-This channel is established and is regularly updated. PR's are welcome
-otherwise.
+This channel is established and can be expected to get timely updates. If not,
+Pull Requests are welcome, too.
 
 For now it mostly contains binary packages and service code to install and run
 [[https://www.ethswarm.org/][Swarm]] Bee nodes, and the necessary support services (an Ethereum node, a Clef
@@ -17,8 +17,8 @@ The project's [[https://github.com/attila-lendvai/guix-crypto][github page]] is 
 
 * How
 This git repository is a Guix channel that can be added to the =channels.scm=
-file of your [[https://guix.gnu.org/][Guix System]] by inserting the following /channel introduction/,
-typically into =/etc/guix/channels.scm=:
+file of your [[https://guix.gnu.org/][Guix System]] by inserting the following /channel introduction/ into
+=/etc/guix/channels.scm=:
 
 #+BEGIN_SRC scheme
   (channel
@@ -51,7 +51,7 @@ swarm. First, add these services to your =config.scm=:
      (list
        ;; Start 2 Bee instances, and a Clef (go-ethereum) account manager.
        (swarm-service
-        #:node-count           2 ; new accounts are created as needed 
+        #:node-count           2 ; new Clef accounts are created as needed
         #:resolver-options     "[optional ethereum mainnet endpoint for ENS]"
         #:swap-endpoint        gnosis-ipc-path
         #:swap-initial-deposit 0 ; start nodes without any BZZ
@@ -94,3 +94,4 @@ the official binary releases to run on [[https://guix.gnu.org/][Guix System]].
 
 Further readings on this topic:
 - go-ethereum [[https://github.com/ethereum/go-ethereum/issues/18292][GitHub issue]] on reproducible builds
+- [[https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5778115/][Reproducibility vs. Replicability: A Brief History of a Confused Terminology]]
