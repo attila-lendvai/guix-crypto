@@ -84,16 +84,20 @@
 (define (serialize-field field-name val)
   (format #t "~A: ~A\n" field-name (value->string val)))
 
+(define-maybe string)
+(define-maybe boolean)
+(define-maybe integer)
+(define-maybe non-negative-integer)
+
 (define serialize-string  serialize-field)
 (define serialize-boolean serialize-field)
 (define serialize-integer serialize-field)
 (define serialize-non-negative-integer serialize-field)
 (define serialize-verbosity-value serialize-field)
+(define (serialize-raw-configuration-string field value)
+  (display value))
 
-(define-maybe string)
-(define-maybe boolean)
-(define-maybe integer)
-(define-maybe non-negative-integer)
+(define raw-configuration-string? maybe-string?)
 
 ;;;
 ;;; Swarm Configuration
@@ -162,7 +166,7 @@ Normally it should be a node connected to the Ethereum mainnet.")
   (password-file         maybe-string "")
   (data-dir              maybe-string "")
   (clef-signer-endpoint  maybe-string "")
-  (extra-bee-config      maybe-string
+  (extra-config          raw-configuration-string
                          "A string that will be appended as-is to the end of the generated \
 @code{bee.yml} files."))
 
