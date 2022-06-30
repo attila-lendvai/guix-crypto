@@ -151,8 +151,8 @@ programming language.")
       (license license:gpl3+))))
 
 (define-public nethermind-binary
-  (let* ((version "1.13.2")
-         (commit "795dd1e")
+  (let* ((version "1.13.3")
+         (commit "0e3289f")
          ;; Note: use bin/geth-update-helper.scm to update the hashes
          (hashes (read-module-relative-file "nethermind-binary.hashes")))
     (package
