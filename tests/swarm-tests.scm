@@ -39,15 +39,18 @@
   #:use-module (gnu services shepherd)
   #:use-module (gnu services networking)
   #:use-module (gnu services sysctl)
+  #:use-module (gnu packages admin)
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
   #:use-module (gnu packages certs)
   #:use-module (gnu packages imagemagick)
+  #:use-module (gnu packages networking)
   #:use-module (gnu packages ocr)
   #:use-module (gnu packages package-management)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages tmux)
   #:use-module (guix gexp)
+  #:use-module (guix git)
   #:use-module (guix store)
   #:use-module (guix modules)
   #:use-module (guix monads)
@@ -77,11 +80,23 @@
      (cons*
       (service dhcp-client-service-type)
 
-      (swarm-service #:node-count 2
-                     #:swap-endpoint "/var/lib/openethereum/gnosis/gnosis.ipc"
-                     #:bee-supplementary-groups '("openethereum")
-                     #:swap-initial-deposit 0
-                     #:dependencies '(gnosis))
+      ;; (swarm-service #:node-count 2
+      ;;                #:swap-endpoint "/var/lib/openethereum/gnosis/gnosis.ipc"
+      ;;                #:bee-supplementary-groups '("openethereum")
+      ;;                #:swap-initial-deposit 0
+      ;;                #:dependencies '(gnosis))
+
+      (service
+       swarm-service-type
+       (swarm-service-configuration
+        (swarm                           swarm/mainnet)
+        (node-count                      2)
+        (additional-service-requirements '(gnosis))
+        (bee-configuration
+         (bee-configuration
+          (swap-endpoint        "/var/lib/openethereum/gnosis/gnosis.ipc")
+          (swap-initial-deposit 0)
+          (debug-api-enable     #true)))))
 
       (openethereum-service #:service-name 'gnosis
                             #:chain        "xdai"
@@ -119,6 +134,8 @@
      (kernel-arguments '("ip=dhcp"))
      (packages (append
                 (list
+                 netcat-openbsd
+                 socat
                  ;; for HTTPS access
                  nss-certs
                  le-certs)
