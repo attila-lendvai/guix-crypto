@@ -49,11 +49,10 @@
   (if value "true" "false"))
 
 (define-public (service-name? val)
-  (and (defined-value? val) ; TODO delete this once Maybe is used for configs
-       (or (symbol? val)
-           (string? val))
-       ;; TODO it's a valid file path component
-       ))
+  (or (symbol? val)
+      (string? val))
+  ;; TODO assert that it's a valid file path component
+  )
 
 (define-public (non-negative-integer? val)
   (and (exact-integer? val)

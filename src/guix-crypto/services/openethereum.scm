@@ -27,7 +27,7 @@
   #:use-module (guix utils)
   #:use-module (guix gexp)
   #:use-module (guix modules)
-  #:use-module ((guix records) #:hide (match-record)) ;; TODO temporarily
+  #:use-module ((guix records) #:hide (match-record)) ;; TODO temporary #duplicate
   #:use-module (guix packages)
   ;;#:use-module (guix git-download)
   #:use-module (gnu packages)
@@ -81,6 +81,7 @@
 (define-maybe boolean)
 (define-maybe integer)
 (define-maybe non-negative-integer)
+(define-maybe service-name)
 
 ;; https://openethereum.github.io/Configuring-OpenEthereum
 (define-configuration openethereum-configuration
@@ -137,9 +138,7 @@ chain or a JSON file path.")
   ;;
   ;; Service's config
   ;;
-  ;; TODO validate it to be compatible with paths
-  ;; TODO maybe rename to name
-  (service-name          service-name
+  (service-name          maybe-service-name
    "The name of this Guix service, a symbol. It will be used as the \
 PROVISION value of the Shepherd service, and as a path component \
 in the data and log directories. You typically want to use here \
@@ -174,28 +173,28 @@ the same value you provided as CHAIN.")
       (user group service-name (openethereum-configuration oe-config))
     (match-record oe-config <openethereum-configuration>
         (chain base-path ipc-path)
-      (let ((chain (ensure-string chain)))
+      (let* ((chain (ensure-string chain))
+             (service-name (if (defined-value? service-name)
+                               (ensure-string service-name)
+                               (string-append "oe-" chain))))
         (openethereum-service-configuration
          (inherit config)
          (user         (or (defined-value? user)
                            (string-append "oe-" chain)))
          (group        (or (defined-value? group)
                            "openethereum"))
-         (service-name (if (defined-value? service-name)
-                           (ensure-string service-name)
-                           (string-append "oe-" chain)))
+         (service-name service-name)
          (openethereum-configuration
-          (openethereum-configuration
-           (inherit oe-config)
-           (chain chain)
-           (base-path    (if (defined-value? base-path)
-                             (ensure-string base-path)
-                             (string-append "/var/lib/openethereum/" service-name)))
-           (ipc-path     (if (defined-value? ipc-path)
-                             ipc-path
-                             (string-append "/var/lib/openethereum/"
-                                            service-name "/"
-                                            service-name ".ipc"))))))))))
+          (let ((base-path (if (defined-value? base-path)
+                               (ensure-string base-path)
+                               (string-append "/var/lib/openethereum/" service-name))))
+            (openethereum-configuration
+             (inherit oe-config)
+             (chain        chain)
+             (base-path    base-path)
+             (ipc-path     (if (defined-value? ipc-path)
+                               ipc-path
+                               (string-append base-path "/" service-name ".ipc")))))))))))
 
 ;;;
 ;;;
