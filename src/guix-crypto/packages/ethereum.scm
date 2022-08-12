@@ -104,7 +104,9 @@
        "Ethereum is a decentralized platform that runs smart contracts,
 applications that run exactly as programmed without possibility of downtime,
 censorship, fraud or third party interference.")
-      (license license:gpl3+))))
+      (license license:gpl3+)
+      (properties
+       '((release-monitoring-url . "https://github.com/ethereum/go-ethereum/releases"))))))
 
 (define-public openethereum-binary
   (let ((version "3.3.5"))
@@ -148,7 +150,9 @@ censorship, fraud or third party interference.")
        "OpenEthereum’s goal is to be the fastest, lightest, and most secure
 Ethereum client.  We are developing OpenEthereum using the cutting-edge Rust
 programming language.")
-      (license license:gpl3+))))
+      (license license:gpl3+)
+      (properties
+       '((release-monitoring-url . "https://github.com/openethereum/openethereum/releases"))))))
 
 (define-public nethermind-binary
   (let* ((version "1.13.3")
@@ -245,4 +249,6 @@ programming language.")
       (synopsis "Ethereum client based on .NET Core")
       (description "The official Nethermind binary release, patched to
 work on Guix.")
-      (license license:gpl3+))))
+      (license license:gpl3+)
+      (properties
+       '((release-monitoring-url . "https://github.com/NethermindEth/nethermind/releases"))))))

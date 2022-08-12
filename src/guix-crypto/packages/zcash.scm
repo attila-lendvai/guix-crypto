@@ -100,4 +100,6 @@
       (home-page "https://z.cash")
       (synopsis "Zcash blockchain tools")
       (description "The official Zcash binary release, patched to work on Guix.")
-      (license license:expat))))
+      (license license:expat)
+      (properties
+       '((release-monitoring-url . "https://github.com/NethermindEth/nethermind/releases"))))))

@@ -73,4 +73,6 @@
 storage and communication service.  The system is economically self-sustaining due to
 a built-in incentive system enforced through smart contracts on the Ethereum
 blockchain.  Bee is a Go implementation of a node in a Swarm.")
-      (license license:bsd-3))))
+      (license license:bsd-3)
+      (properties
+       '((release-monitoring-url . "https://github.com/ethersphere/bee/releases"))))))
