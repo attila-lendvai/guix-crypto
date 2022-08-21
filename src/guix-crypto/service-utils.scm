@@ -37,14 +37,6 @@
 ;;;
 ;;; Configuration
 ;;;
-(define-public (undefined-value? x)
-  (unspecified? x))
-
-(define-public (defined-value? x)
-  (if (undefined-value? x)
-      #false
-      x))
-
 (define-public (boolean->true/false value)
   (if value "true" "false"))
 

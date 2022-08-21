@@ -161,7 +161,7 @@ the same value you provided as CHAIN.")
   (fold (lambda (field result)
           (let ((name (configuration-field-name field))
                 (value ((configuration-field-getter field) config)))
-            (if (defined-value? value)
+            (if (maybe-value-set? value)
                 (append ((configuration-field-serializer field) name value)
                         result)
                 result)))
@@ -174,27 +174,24 @@ the same value you provided as CHAIN.")
     (match-record oe-config <openethereum-configuration>
         (chain base-path ipc-path)
       (let* ((chain (ensure-string chain))
-             (service-name (if (defined-value? service-name)
-                               (ensure-string service-name)
-                               (string-append "oe-" chain))))
+             (service-name (ensure-string
+                            (maybe-value service-name
+                                         (string-append "oe-" chain)))))
         (openethereum-service-configuration
          (inherit config)
-         (user         (or (defined-value? user)
-                           (string-append "oe-" chain)))
-         (group        (or (defined-value? group)
-                           "openethereum"))
+         (user         (maybe-value user (string-append "oe-" chain)))
+         (group        (maybe-value group "openethereum"))
          (service-name service-name)
          (openethereum-configuration
-          (let ((base-path (if (defined-value? base-path)
-                               (ensure-string base-path)
-                               (string-append "/var/lib/openethereum/" service-name))))
+          (let ((base-path (ensure-string
+                            (maybe-value base-path
+                                         (string-append "/var/lib/openethereum/"
+                                                        service-name)))))
             (openethereum-configuration
              (inherit oe-config)
              (chain        chain)
              (base-path    base-path)
-             (ipc-path     (if (defined-value? ipc-path)
-                               ipc-path
-                               (string-append base-path "/" service-name ".ipc")))))))))))
+             (ipc-path     (maybe-value ipc-path (string-append base-path "/" service-name ".ipc")))))))))))
 
 ;;;
 ;;;
@@ -257,7 +254,7 @@ the same value you provided as CHAIN.")
                    ;; otherwise any (requirement ...) specification on other
                    ;; services is useless.
                    (let ((pid (apply forkexec args)))
-                     (when #$(or (undefined-value? no-ipc)
+                     (when #$(or (not (maybe-value-set? no-ipc))
                                  (not no-ipc))
                        (ensure-ipc-file-permissions pid #$ipc-path))
                      pid)))))
@@ -284,11 +281,11 @@ the same value you provided as CHAIN.")
        (list
         (user-group
          (name group)
-         (id (or (defined-value? group-id) #false))
+         (id (maybe-value group-id))
          (system? #t))
         (user-account
          (name user)
-         (uid (or (defined-value? user-id) #false))
+         (uid (maybe-value user-id))
          (group group)
          (supplementary-groups (delete group '("openethereum")))
          (system? #t)
@@ -328,20 +325,20 @@ the same value you provided as CHAIN.")
    (description "Runs an OpenEthereum instance as a Shepherd service.")))
 
 (define* (openethereum-service #:key
-                               (user                *unspecified*)
-                               (group               *unspecified*)
+                               (user                %unset-value)
+                               (group               %unset-value)
                                (chain               "foundation")
                                (service-name        'openethereum)
-                               (ipc-path            *unspecified*)
-                               (warp-barrier        *unspecified*)
-                               (min-peers           *unspecified*)
-                               (max-peers           *unspecified*)
-                               (snapshot-peers      *unspecified*)
-                               (enable-snapshotting *unspecified*)
+                               (ipc-path            %unset-value)
+                               (warp-barrier        %unset-value)
+                               (min-peers           %unset-value)
+                               (max-peers           %unset-value)
+                               (snapshot-peers      %unset-value)
+                               (enable-snapshotting %unset-value)
                                (scale-verifiers     #true)
                                (unsafe-expose       #false)
-                               (no-ws               *unspecified*)
-                               (no-jsonrpc          *unspecified*))
+                               (no-ws               %unset-value)
+                               (no-jsonrpc          %unset-value))
   (service openethereum-service-type
            (openethereum-service-configuration
             (service-name            service-name)

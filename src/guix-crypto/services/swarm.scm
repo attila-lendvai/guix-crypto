@@ -95,7 +95,8 @@
 (define serialize-non-negative-integer serialize-field)
 (define serialize-verbosity-value serialize-field)
 (define (serialize-raw-configuration-string field value)
-  (display value))
+  (when (maybe-value-set? value)
+    (display value)))
 
 (define raw-configuration-string? maybe-string?)
 
@@ -220,26 +221,19 @@ a local Gnosis chain node instance, then you can add its name here.")
         ;; Return with a copy in which everything is fully specified.
         (swarm-service-configuration
          (inherit service-config)
-         (bee-user       (or (defined-value? bee-user)
-                             (string-append "bee-"   swarm-name)))
-         (clef-user      (or (defined-value? clef-user)
-                             (string-append "clef-"  swarm-name)))
-         (swarm-group    (or (defined-value? swarm-group)
-                             (string-append "swarm-" swarm-name)))
+         (bee-user       (maybe-value bee-user    (string-append "bee-"   swarm-name)))
+         (clef-user      (maybe-value clef-user   (string-append "clef-"  swarm-name)))
+         (swarm-group    (maybe-value swarm-group (string-append "swarm-" swarm-name)))
          (bee-configuration
           ;; This config will be used when NODE-COUNT is 1. Otherwise
           ;; BEE-CONFIGURATION-FOR-NODE-INDEX will be used to generate the
           ;; indexed cfg instances for each node.
           (bee-configuration
            (inherit bee-cfg)
-           (mainnet              (or (defined-value? mainnet)
-                                     (equal? swarm-name "mainnet")))
-           (network-id           (or (defined-value? bee/network-id)
-                                     swarm/network-id))
-           (password-file        (or (defined-value? password-file)
-                                     (bee-password-file swarm-name)))
-           (data-dir             (or (defined-value? data-dir)
-                                     (bee-data-directory swarm-name 0)))
+           (mainnet              (maybe-value mainnet        (equal? swarm-name "mainnet")))
+           (network-id           (maybe-value bee/network-id swarm/network-id))
+           (password-file        (maybe-value password-file  (bee-password-file swarm-name)))
+           (data-dir             (maybe-value data-dir       (bee-data-directory swarm-name 0)))
            (clef-signer-endpoint (clef-ipc-file swarm-name)))))))))
 
 (define (bee-configuration-for-node-index swarm template node-index)
@@ -664,7 +658,7 @@ number of times, in any random moment."
              (list
               (user-account
                (name clef-user)
-               (uid (or (defined-value? clef-user-id) #false))
+               (uid (maybe-value clef-user-id))
                (group swarm-group)
                (system? #t)
                (comment (string-append "Service user for the clef instance of swarm "
@@ -677,11 +671,11 @@ number of times, in any random moment."
                 (system? #t))
                (user-group
                 (name swarm-group)
-                (id (or (defined-value? swarm-group-id) #false))
+                (id (maybe-value swarm-group-id))
                 (system? #t))
                (user-account
                 (name bee-user)
-                (uid (or (defined-value? bee-user-id) #false))
+                (uid (maybe-value bee-user-id))
                 (group swarm-group)
                 (supplementary-groups bee-supplementary-groups)
                 (system? #t)
@@ -730,7 +724,7 @@ Ethereum Clef instance as a group of Shepherd services.")))
                         (node-count 1)
                         (resolver-options "")
                         (swap-endpoint "ws://localhost:8546")
-                        (swap-initial-deposit *unspecified*)
+                        (swap-initial-deposit %unset-value)
                         (swarm swarm/mainnet)
                         (dependencies '())
                         (bee-supplementary-groups '())
