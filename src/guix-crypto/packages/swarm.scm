@@ -35,7 +35,7 @@
   #:use-module (srfi srfi-1))
 
 (define-public bee-binary
-  (let ((version "1.8.0")
+  (let ((version "1.8.1")
         ;; Note: use bin/geth-update-helper.scm to update the hashes
         (hashes (read-module-relative-file "bee-binary.hashes")))
     (package
