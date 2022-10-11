@@ -30,10 +30,12 @@
   #:use-module (gnu packages base)
   #:use-module (gnu packages bootstrap)
   #:use-module (gnu packages compression)
+  #:use-module (gnu packages databases)
   #:use-module (gnu packages elf)
   #:use-module (gnu packages icu4c)
   #:use-module (gnu packages gcc)
   #:use-module (gnu packages gnupg)
+  #:use-module (gnu packages tls)
   #:use-module (nonguix build-system binary)
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-1)
@@ -155,8 +157,8 @@ programming language.")
        '((release-monitoring-url . "https://github.com/openethereum/openethereum/releases"))))))
 
 (define-public nethermind-binary
-  (let* ((version "1.13.6")
-         (commit "be7b4ab")
+  (let* ((version "1.14.3")
+         (commit "7074612")
          ;; Note: use bin/geth-update-helper.scm to update the hashes
          (hashes (read-module-relative-file "nethermind-binary.hashes")))
     (package
@@ -189,14 +191,15 @@ programming language.")
           ;; We install the binaries into the share-dir, so that they can find
           ;; the necessary files relative to the binary's path. They are
           ;; symlinked into the bin/ dir in a separate phase below.
-          #:install-plan `'(("Nethermind.Cli"       ,share-dir)
-                            ("Nethermind.Launcher"  ,share-dir)
-                            ("Nethermind.Runner"    ,share-dir)
-                            ("plugins"   ,share-dir)
-                            ("configs"   ,share-dir)
-                            ("chainspec" ,share-dir))
+          #:install-plan `'(("Nethermind.Cli"      ,share-dir)
+                            ("Nethermind.Launcher" ,share-dir)
+                            ("Nethermind.Runner"   ,share-dir)
+                            ("NLog.config"         ,share-dir)
+                            ("plugins"             ,share-dir)
+                            ("configs"             ,share-dir))
           #:strip-binaries? #false      ; The less we modify, the better.
-          #:patchelf-plan (let ((libs '("glibc" "gcc" "zlib" "icu4c")))
+          #:patchelf-plan (let ((libs '("glibc" "gcc" "zlib" "icu4c"
+                                        "rocksdb" "openssl" "snappy")))
                             `'(("Nethermind.Cli"      ,libs)
                                ("Nethermind.Launcher" ,libs)
                                ("Nethermind.Runner"   ,libs)))
@@ -219,6 +222,10 @@ programming language.")
                     (setenv "DOTNET_BUNDLE_EXTRACT_BASE_DIR" (getenv "TMPDIR"))
                     (invoke "./Nethermind.Runner" "--version"))))
               (add-after 'install 'symlink-binaries
+                ;; the NETHERMIND_PLUGINSDIRECTORY var doesn't seem to work
+                ;; if it worked, we could put the binaries into bin/ and wrap them.
+                ;; not sure whether it would be any better than
+                ;; symlinking them, though...
                 (lambda* (#:key outputs #:allow-other-keys)
                   (let* ((out (assoc-ref outputs "out"))
                          (share (string-append out #$share-dir)))
@@ -232,9 +239,7 @@ programming language.")
                      '("Nethermind.Cli"
                        "Nethermind.Launcher"
                        "Nethermind.Runner")))))
-              ;; TODO the NETHERMIND_PLUGINSDIRECTORY var doesn't work
-              ;; if it worked, we could put the binaries into bin/ and wrap them.
-              ;; not sure whether it would be any better, though...
+              ;; alternatively:
               ;; (add-after 'install 'wrap
               ;;   (lambda* (#:key outputs #:allow-other-keys)
               ;;     (let ((out (assoc-ref outputs "out")))
@@ -242,8 +247,15 @@ programming language.")
               ;;         `("NETHERMIND_PLUGINSDIRECTORY" =
               ;;           (,(string-append out #$share-dir "plugins")))))))
               ))))
-      (native-inputs (list unzip patchelf))
-      (inputs (list glibc (list gcc "lib") zlib icu4c))
+      (native-inputs (list unzip
+                           patchelf))
+      (inputs (list (list gcc "lib")
+                    glibc
+                    icu4c
+                    openssl
+                    rocksdb
+                    snappy
+                    zlib))
       (supported-systems (map first hashes))
       (home-page "https://nethermind.io/")
       (synopsis "Ethereum client based on .NET Core")
