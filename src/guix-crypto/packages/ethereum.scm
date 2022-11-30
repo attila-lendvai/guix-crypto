@@ -157,8 +157,8 @@ programming language.")
        '((release-monitoring-url . "https://github.com/openethereum/openethereum/releases"))))))
 
 (define-public nethermind-binary
-  (let* ((version "1.14.5")
-         (commit "380bf9c")
+  (let* ((version "1.14.7")
+         (commit "4fe81c6")
          ;; Note: use bin/geth-update-helper.scm to update the hashes
          (hashes (read-module-relative-file "nethermind-binary.hashes")))
     (package
