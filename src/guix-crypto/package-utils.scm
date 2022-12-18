@@ -62,10 +62,11 @@
 (define-public (current-system-as-go-system)
   (guix-system-name->go-system-name (%current-system)))
 
-(define-public (github-release-uri org-name repo-name version file-name)
+(define-public* (github-release-uri org-name repo-name version file-name
+                                    #:key (suffix ""))
   (values (string-append
            "https://github.com/" org-name "/" repo-name "/releases/download/"
-           "v" version "/" file-name)
+           "v" version "/" file-name suffix)
           file-name))
 
 (define-public* (geth-release-file-name arch version commit-hash
@@ -93,9 +94,24 @@
   (github-release-uri "ethersphere" "bee" version
                       (bee-release-file-name arch)))
 
+(define-public* (lighthouse-release-file-name arch version)
+  (string-append "lighthouse-v" version "-" arch
+                 "-gnu-portable.tar.gz"))
+
+(define-public* (lighthouse-release-uri arch version
+                                        #:key (suffix ""))
+  (github-release-uri "sigp" "lighthouse" version
+                      (lighthouse-release-file-name arch version)
+                      #:suffix suffix))
+
 (define-public (guix-system-name->zcash-system-name name)
   (match name
     ("x86_64-linux"      "linux64")))
+
+(define-public (guix-system-name->rust-system-name name)
+  (match name
+    ("x86_64-linux"      "x86_64-unknown-linux")
+    ("aarch64-linux"     "aarch64-unknown-linux")))
 
 (define-public* (zcash-release-file-name arch version
                                          #:key (suffix ""))

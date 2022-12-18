@@ -264,3 +264,60 @@ work on Guix.")
       (license license:gpl3+)
       (properties
        '((release-monitoring-url . "https://github.com/NethermindEth/nethermind/releases"))))))
+
+(define-public lighthouse-binary
+  (let* ((version "3.3.0")
+         ;; Note: use bin/geth-update-helper.scm to update the hashes
+         (hashes (read-module-relative-file "lighthouse-binary.hashes")))
+    (package
+      (name "lighthouse-binary")
+      (version version)
+      (source
+       (let* ((uri file-name
+                   (lighthouse-release-uri
+                    (guix-system-name->rust-system-name (%current-system))
+                    version)))
+         (origin
+           (method url-fetch)
+           (uri uri)
+           (file-name file-name)
+           (sha256 (base32 (or (assoc-ref hashes (%current-system))
+                               (unsupported-arch name (%current-system))))))))
+      (build-system binary-build-system)
+      (arguments
+       (let ((versioned-name (string-append "lighthouse-" version)))
+         (list
+          #:install-plan `'(("lighthouse" ,(string-append "bin/" versioned-name)))
+          #:strip-binaries? #false      ; The less we modify, the better.
+          #:patchelf-plan (let ((libs '("glibc" "gcc")))
+                            `'(("lighthouse" ,libs)))
+          #:phases
+          #~(modify-phases %standard-phases
+              (add-after 'patchelf 'check
+                (lambda* (#:key (tests? #t) #:allow-other-keys)
+                  (when tests?
+                    ;; At the time of this writing binary-build-system does not
+                    ;; support cross builds. When it will, it will hopefully
+                    ;; declare #:tests #f and this will keep working in cross
+                    ;; builds.
+                    (invoke "./lighthouse" "--version"))))
+              (add-after 'install 'symlink-binaries
+                (lambda* (#:key outputs #:allow-other-keys)
+                  (let* ((out (assoc-ref outputs "out"))
+                         (source #$versioned-name)
+                         (target "lighthouse"))
+                    (with-directory-excursion (string-append out "/bin/")
+                      (format #t "~A -> ~A~%" source target)
+                      (symlink source target)))))))))
+      (native-inputs (list unzip
+                           patchelf))
+      (inputs (list (list gcc "lib")
+                    glibc))
+      (supported-systems (map first hashes))
+      (home-page "https://lighthouse.sigmaprime.io/")
+      (synopsis "Ethereum consensus-layer client, aka a beacon node")
+      (description "The official lighthouse binary release, patched to
+work on Guix.")
+      (license license:asl2.0)
+      (properties
+       '((release-monitoring-url . "https://github.com/sigp/lighthouse/releases"))))))

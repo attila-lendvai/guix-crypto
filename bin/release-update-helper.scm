@@ -61,6 +61,13 @@
      ("6942FB745ECE67D86CDA45704770A0C134E353C6"
       "EECCEA1473108E3222D76722D39BE1DDCB6DA407")
      ,guix-system-name->go-system-name
+     ("x86_64-linux" "aarch64-linux"))
+
+    ("lighthouse-binary"
+     ,lighthouse-release-uri
+     ;; Captured at 2022-12-17.
+     ("15E66D941F697E28F49381F426416DC3F30674B0")
+     ,guix-system-name->rust-system-name
      ("x86_64-linux" "aarch64-linux"))))
 
 (define (package-db-entry name)
