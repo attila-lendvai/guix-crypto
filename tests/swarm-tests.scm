@@ -131,7 +131,7 @@
   (marionette-operating-system
    (operating-system
      (inherit *swarm-os*)
-     (kernel-arguments '("ip=dhcp"))
+     (kernel-arguments '())
      (packages (append
                 (list
                  netcat-openbsd
