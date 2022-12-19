@@ -41,6 +41,7 @@
   #:use-module (ice-9 rdelim)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 format)
+  #:use-module (ice-9 ftw)
   #:export        ; Also note the extensive use of DEFINE-PUBLIC below
   (with-log-directory
    match-record ;; TODO temporarily, see below
@@ -208,11 +209,40 @@ The current implementation does not support thunked and delayed fields."
 ;;             (loop (read-line))))))
 ;;     (reverse! result)))
 
-(define-public (chown-r uid gid . dirs)
-  (for-each (if uid
-                (cute invoke "chown" "-R" (format #f "~A:~A" uid gid) <>)
-                (cute invoke "chgrp" "-R" (format #f "~A" gid) <>))
-            dirs))
+(define-public* (chown-recursively uid gid dir)
+  (define follow-mounts? #f)
+  (when (string? uid)
+    (set! uid (passwd:uid (getpwnam uid))))
+  (when (string? gid)
+    (set! gid (group:gid (getgrnam gid))))
+  (let ((dev (stat:dev (lstat dir))))
+    (file-system-fold (lambda (dir stat result) ; enter?
+                        (or follow-mounts?
+                            (= dev (stat:dev stat))))
+                      (lambda (file stat result) ; leaf
+                        (chown file (or uid -1) (or gid -1)))
+                      (lambda (dir stat result) ; down
+                        (chown dir (or uid -1) (or gid -1))
+                        #true)
+                      (const #true)                    ; up
+                      (const #t)                       ; skip
+                      (lambda (file stat errno result) ; error
+                        (format (current-error-port) "i/o error: ~a: ~a~%"
+                                file (strerror errno)))
+                      #t
+                      dir
+                      ;; Don't follow symlinks.
+                      lstat)))
+
+(define (ensure-uid uid)
+  (if (string? uid)
+      (passwd:uid (getpwnam uid))
+      uid))
+
+(define (ensure-gid gid)
+  (if (string? gid)
+      (group:gid (getgrnam gid))
+      gid))
 
 (define-public (ensure-password-file password-file uid gid)
   (log.dribble "ENSURE-PASSWORD-FILE for ~S" password-file)
@@ -224,15 +254,13 @@ The current implementation does not support thunked and delayed fields."
       (unless (zero? (system cmd))
         (error "Failed to generate password file" password-file))
       (chmod password-file #o400)))
-  (chown password-file (or uid -1) (or gid -1)))
+  (chown password-file
+         (or (ensure-uid uid) -1)
+         (or (ensure-gid gid) -1)))
 
 (define-public (ensure-directories owner group permissions . directories)
-  (let ((uid (if (string? owner)
-                 (passwd:uid (getpwnam owner))
-                 owner))
-        (gid (if (string? group)
-                 (group:gid (getgrnam group))
-                 group)))
+  (let ((uid (ensure-uid owner))
+        (gid (ensure-gid group)))
     (for-each
      (lambda (dir)
        (mkdir-p dir)
@@ -244,7 +272,8 @@ The current implementation does not support thunked and delayed fields."
 (define-public (ensure-directories/rec owner group permissions
                                        . directories)
   (apply ensure-directories owner group permissions directories)
-  (apply chown-r owner group directories)
+  (for-each (cute chown-recursively owner group <>)
+            directories)
   (values))
 
 (define-public (get-monotonic-time)
