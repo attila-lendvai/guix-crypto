@@ -44,7 +44,6 @@
   #:use-module (ice-9 ftw)
   #:export        ; Also note the extensive use of DEFINE-PUBLIC below
   (with-log-directory
-   match-record ;; TODO temporarily, see below
    with-service-environment
    define-public*))
 
@@ -73,34 +72,6 @@
   (if (string? obj)
       obj
       (object->string obj)))
-
-;; TODO shadow MATCH-RECORD until it gets merged:
-;; https://issues.guix.gnu.org/54652
-(define-syntax match-record/fields
-  (syntax-rules ()
-    ((_ record type ((field-name variable-name) fields ...) body ...)
-     (let ((variable-name ((record-accessor type 'field-name) record)))
-       ;; TODO compute indices and report wrong-field-name errors at
-       ;;      expansion time
-       ;; TODO support thunked and delayed fields
-       (match-record/fields record type (fields ...) body ...)))
-    ((_ record type (field fields ...) body ...)
-     ;; Channel it back into the canonical form above.
-     (match-record/fields record type ((field field) fields ...) body ...))
-    ((_ record type () body ...)
-     (begin body ...))))
-
-(define-syntax match-record
-  (syntax-rules ()
-    "Bind each FIELD of a RECORD of the given TYPE to it's FIELD name.
-The current implementation does not support thunked and delayed fields."
-    ((_ record type (field fields ...) body ...)
-     (if (eq? (struct-vtable record) type)
-         ;; So that we only test the type once.
-         (match-record/fields record type (field fields ...) body ...)
-         (throw 'wrong-type-arg record)))
-    ((_ record type () body ...)
-     (begin body ...))))
 
 ;;;
 ;;; Logging

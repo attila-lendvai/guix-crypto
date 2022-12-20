@@ -27,7 +27,7 @@
   #:use-module (guix utils)
   #:use-module (guix gexp)
   #:use-module (guix modules)
-  #:use-module ((guix records) #:hide (match-record)) ;; TODO temporary #duplicate
+  #:use-module (guix records)
   #:use-module (guix packages)
   ;;#:use-module (guix git-download)
   #:use-module (gnu packages)
