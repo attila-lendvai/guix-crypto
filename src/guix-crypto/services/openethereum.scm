@@ -1,4 +1,4 @@
-;;; Copyright © 2021 Attila Lendvai <attila@lendvai.name>
+;;; Copyright © 2021-2022 Attila Lendvai <attila@lendvai.name>
 ;;;
 ;;; This file is part of guix-crypto, a channel for Guix.
 ;;;
