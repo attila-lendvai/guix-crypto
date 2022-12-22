@@ -453,7 +453,7 @@ a local Gnosis chain node instance, then you can add its name here.")
 
 (define (upstream-bee-clef-file relative-path)
   (let ((bee-clef-git
-         (let ((commit "v0.9.0"))
+         (let ((commit "v0.13.2"))
            (origin
              (method git-fetch)
              (uri (git-reference
@@ -462,7 +462,7 @@ a local Gnosis chain node instance, then you can add its name here.")
              (file-name (git-file-name "bee-clef" commit))
              (sha256
               (base32
-               "1vg1mqzldfxc4agff0aw5a94453f22aj9a0grl4y0vs1bg5skcdd"))))))
+               "02hrsykn47rp5zhm5dic76pxi5618b5p3qyz8mkxwf0d9s5bnr17"))))))
     (file-append bee-clef-git relative-path)))
 
 (define (rules.js)
