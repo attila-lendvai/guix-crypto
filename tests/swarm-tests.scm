@@ -25,7 +25,7 @@
   #:use-module (guix-crypto packages ethereum)
   #:use-module (guix-crypto packages swarm)
   #:use-module (guix-crypto services swarm)
-  #:use-module (guix-crypto services openethereum)
+  #:use-module (guix-crypto services lighthouse)
   #:use-module (gnu tests)
   #:use-module (gnu system)
   #:use-module (gnu system shadow)
@@ -122,13 +122,19 @@
           (swap-initial-deposit 0)
           (debug-api-enable     #true)))))
 
-      (openethereum-service #:service-name 'gnosis
-                            #:chain        "xdai"
-                            #:user         "gnosis"
-                            #:group        "swarm-mainnet"
-                            #:snapshot-peers 10
-                            #:enable-snapshotting #true
-                            #:warp-barrier 20420000)
+      (lighthouse-service #:service-name   'gnosis
+                          #:network        "gnosis"
+                          #:user           "gnosis"
+                          #:enable-snapshotting #true
+                          #:warp-barrier   20420000)
+
+      ;; (openethereum-service #:service-name 'gnosis
+      ;;                       #:chain        "xdai"
+      ;;                       #:user         "gnosis"
+      ;;                       #:group        "swarm-mainnet"
+      ;;                       #:snapshot-peers 10
+      ;;                       #:enable-snapshotting #true
+      ;;                       #:warp-barrier 20420000)
 
       ;; (service openethereum-service-type
       ;;          (openethereum-service-configuration

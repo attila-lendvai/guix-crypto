@@ -15,6 +15,9 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
+;; TODO delme
+;; /gnu/store/jkxm33y87b0p6ih4hp0r5h5jjlr1ah34-lighthouse-binary-3.4.0/bin/lighthouse --network gnosis beacon_node --datadir=/tmp/lighthouse --http --execution-endpoint http://localhost:8551 --execution-jwt /tmp/jwt.hex --checkpoint-sync-url "https://checkpoint.gnosischain.com"
+
 (define-module (guix-crypto services lighthouse)
   #:use-module (guix-crypto utils)
   #:use-module (guix-crypto service-utils)
@@ -83,47 +86,12 @@
 (define-configuration lighthouse-configuration
   ;; For simplicity the field names here are the same as the
   ;; Lighthouse config entry names.
-  (network                 maybe-string
-   "Which blockchain to connect to. It may be the name of a supported \
-chain or a JSON file path.")
-  (base-path             maybe-string
+  (network               maybe-string
+   "Which blockchain to connect to.")
+  (datadir               maybe-string
    "Directory where the state is stored.")
   (ipc-path              maybe-string
-   "File name of the IPC file.")
-  (identity              maybe-string
-   "")
-  (scale-verifiers       maybe-boolean
-   "")
-  (warp-barrier          maybe-non-negative-integer
-   "")
-  (no-ws                 maybe-boolean
-   "Disable the websocket interface.")
-  (no-jsonrpc            maybe-boolean
-   "Disable the jsonrpc interface.")
-  (no-ipc                maybe-boolean
-   "Disable the file based IPC interface.")
-  (unsafe-expose         (boolean #false)
-   "")
-  (ws-interface          maybe-string "")
-  (ws-port               maybe-non-negative-integer "")
-  (ws-hosts              maybe-string "")
-  (jsonrpc-interface     maybe-string "")
-  (jsonrpc-port          maybe-non-negative-integer "")
-  (jsonrpc-hosts         maybe-string "")
-  (enable-snapshotting   maybe-boolean
-   "Create a snapshot every 5000 blocks that other nodes can download using warp syncing.")
-  (ports-shift           maybe-integer
-   "")
-  (bootnodes             maybe-string
-   "")
-  (nat                   maybe-string
-   "")
-  (max-peers             maybe-integer
-   "")
-  (min-peers             maybe-integer
-   "")
-  (snapshot-peers        maybe-integer
-   ""))
+   "File name of the IPC file."))
 
 (define-configuration/no-serialization lighthouse-service-configuration
   ;;
@@ -168,7 +136,7 @@ the same value you provided as NETWORK.")
   (match-record config <lighthouse-service-configuration>
       (user group service-name (lighthouse-configuration oe-config))
     (match-record oe-config <lighthouse-configuration>
-        (network base-path ipc-path)
+        (network datadir ipc-path)
       (let* ((network (ensure-string network))
              (service-name (ensure-string
                             (maybe-value service-name
@@ -179,15 +147,16 @@ the same value you provided as NETWORK.")
          (group        (maybe-value group "lighthouse"))
          (service-name service-name)
          (lighthouse-configuration
-          (let ((base-path (ensure-string
-                            (maybe-value base-path
-                                         (string-append "/var/lib/lighthouse/"
-                                                        service-name)))))
+          (let ((datadir (ensure-string
+                          (maybe-value datadir
+                                       (string-append "/var/lib/lighthouse/"
+                                                      service-name)))))
             (lighthouse-configuration
              (inherit oe-config)
-             (network        network)
-             (base-path    base-path)
-             (ipc-path     (maybe-value ipc-path (string-append base-path "/" service-name ".ipc")))))))))))
+             (network      network)
+             (datadir      datadir)
+             (ipc-path     (maybe-value ipc-path
+                                        (string-append datadir "/" service-name ".ipc")))))))))))
 
 ;;;
 ;;;
@@ -204,7 +173,7 @@ the same value you provided as NETWORK.")
     (match-record config <lighthouse-service-configuration>
         (user group service-name lighthouse lighthouse-configuration)
       (match-record lighthouse-configuration <lighthouse-configuration>
-          (network base-path no-ipc ipc-path)
+          (network datadir ipc-path)
         (list
          (shepherd-service
           (documentation (simple-format #f "An lighthouse node connecting to network '~A'"
@@ -223,7 +192,7 @@ the same value you provided as NETWORK.")
                                        "/var/log/lighthouse")
 
                    (ensure-directories/rec #$user #$group #o2751
-                                           #$base-path)
+                                           #$datadir)
 
                    (log.debug "Lighthouse service is starting up")
 
@@ -241,7 +210,7 @@ the same value you provided as NETWORK.")
                       #:group #$group
                       #:log-file #$(lighthouse-log-filename log-dir service-name)
                       #:environment-variables
-                      (list (string-append "HOME=" #$base-path)
+                      (list (string-append "HOME=" #$datadir)
                             (string-append "PATH=" #$path)
                             "LC_ALL=en_US.UTF-8")))
 
@@ -250,9 +219,7 @@ the same value you provided as NETWORK.")
                    ;; otherwise any (requirement ...) specification on other
                    ;; services is useless.
                    (let ((pid (apply forkexec args)))
-                     (when #$(or (not (maybe-value-set? no-ipc))
-                                 (not no-ipc))
-                       (ensure-ipc-file-permissions pid #$ipc-path))
+                     (ensure-ipc-file-permissions pid #$ipc-path)
                      pid)))))
           ;; TODO this should wait, herd restart fails now
           (stop #~(make-kill-destructor))))))))
@@ -264,7 +231,7 @@ the same value you provided as NETWORK.")
     (user user-id group group-id lighthouse-configuration)
     (match-record
           lighthouse-configuration <lighthouse-configuration>
-      (network base-path)
+      (network datadir)
       ;; NOTE it's safe to forward the #false default value of uid/gid to
       ;; USER-ACCOUNT.
       (append
@@ -286,7 +253,7 @@ the same value you provided as NETWORK.")
          (supplementary-groups (delete group '("lighthouse")))
          (system? #t)
          (comment (string-append "Lighthouse service for network '" network "'"))
-         (home-directory base-path)
+         (home-directory datadir)
          (shell (file-append shadow "/sbin/nologin"))))))))
 
 (define (make-lighthouse-log-rotations service-config)
@@ -325,16 +292,7 @@ the same value you provided as NETWORK.")
                                (group               %unset-value)
                                (network             "mainnet")
                                (service-name        'lighthouse)
-                               (ipc-path            %unset-value)
-                               (warp-barrier        %unset-value)
-                               (min-peers           %unset-value)
-                               (max-peers           %unset-value)
-                               (snapshot-peers      %unset-value)
-                               (enable-snapshotting %unset-value)
-                               (scale-verifiers     #true)
-                               (unsafe-expose       #false)
-                               (no-ws               %unset-value)
-                               (no-jsonrpc          %unset-value))
+                               (ipc-path            %unset-value))
   (service lighthouse-service-type
            (lighthouse-service-configuration
             (service-name            service-name)
@@ -343,13 +301,4 @@ the same value you provided as NETWORK.")
             (lighthouse-configuration
              (lighthouse-configuration
               (network               network)
-              (ipc-path              ipc-path)
-              (warp-barrier          warp-barrier)
-              (min-peers             min-peers)
-              (max-peers             max-peers)
-              (snapshot-peers        snapshot-peers)
-              (enable-snapshotting   enable-snapshotting)
-              (scale-verifiers       scale-verifiers)
-              (unsafe-expose         unsafe-expose)
-              (no-ws                 no-ws)
-              (no-jsonrpc            no-jsonrpc))))))
+              (ipc-path              ipc-path))))))
