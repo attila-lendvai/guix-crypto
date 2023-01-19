@@ -157,8 +157,8 @@ programming language.")
        '((release-monitoring-url . "https://github.com/openethereum/openethereum/releases"))))))
 
 (define-public nethermind-binary
-  (let* ((version "1.15.0")
-         (commit "2b70876")
+  (let* ((version "1.16.0")
+         (commit "c7df68c6")
          ;; Note: use bin/geth-update-helper.scm to update the hashes
          (hashes (read-module-relative-file "nethermind-binary.hashes")))
     (package
@@ -169,7 +169,7 @@ programming language.")
                    (nethermind-release-uri
                     ;; Strictly speaking, this is wrong, because it's
                     ;; not written in golang, but it matches.
-                    (current-system-as-go-system)
+                    (guix-system-name->nethermind-system-name (%current-system))
                     version commit)))
          (origin
            (method url-fetch)
