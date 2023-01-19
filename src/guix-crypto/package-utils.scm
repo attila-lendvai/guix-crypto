@@ -113,6 +113,12 @@
     ("x86_64-linux"      "x86_64-unknown-linux")
     ("aarch64-linux"     "aarch64-unknown-linux")))
 
+(define-public (guix-system-name->nethermind-system-name name)
+  (match name
+    ("x86_64-linux"      "linux-x64")
+    ("aarch64-linux"     "linux-arm64")))
+
+
 (define-public* (zcash-release-file-name arch version
                                          #:key (suffix ""))
   (string-append "zcash-"
@@ -129,9 +135,9 @@
 (define-public* (nethermind-release-file-name arch version commit
                                               #:key (suffix ""))
   (string-append "nethermind-"
-                 arch "-"
                  version "-"
-                 commit
+                 commit "-"
+                 arch
                  ".zip"
                  suffix))
 

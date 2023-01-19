@@ -60,7 +60,7 @@
      ;; Captured at 2022-05-01.
      ("6942FB745ECE67D86CDA45704770A0C134E353C6"
       "EECCEA1473108E3222D76722D39BE1DDCB6DA407")
-     ,guix-system-name->go-system-name
+     ,guix-system-name->nethermind-system-name
      ("x86_64-linux" "aarch64-linux"))
 
     ("lighthouse-binary"
