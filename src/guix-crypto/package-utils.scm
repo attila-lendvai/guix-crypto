@@ -104,6 +104,17 @@
                       (lighthouse-release-file-name arch version)
                       #:suffix suffix))
 
+;; https://featherwallet.org/files/releases/linux/feather-2.3.0-linux.zip
+(define-public* (feather-release-file-name version #:key (suffix ""))
+  (string-append "feather-" version "-linux.zip"
+                 suffix))
+
+(define-public* (feather-release-uri arch version #:key (suffix ""))
+  (let ((file-name (feather-release-file-name version #:suffix suffix)))
+    (values (string-append "https://featherwallet.org/files/releases/linux/"
+                           file-name)
+            file-name)))
+
 (define-public (guix-system-name->zcash-system-name name)
   (match name
     ("x86_64-linux"      "linux64")))

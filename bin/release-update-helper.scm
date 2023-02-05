@@ -68,7 +68,14 @@
      ;; Captured at 2022-12-17.
      ("15E66D941F697E28F49381F426416DC3F30674B0")
      ,guix-system-name->rust-system-name
-     ("x86_64-linux" "aarch64-linux"))))
+     ("x86_64-linux" "aarch64-linux"))
+
+    ("feather-binary"
+     ,feather-release-uri
+     ;; Captured at 2023-02-04 by me, and also at 2021 oct by a trusted friend.
+     ("8185E158A33330C7FD61BC0D1F76E155CEFBA71C")
+     ,guix-system-name->rust-system-name
+     ("x86_64-linux"))))
 
 (define (package-db-entry name)
   (assoc-ref +package-db+ name))
