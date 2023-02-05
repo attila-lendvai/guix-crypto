@@ -37,7 +37,7 @@
 (define-public bee-binary
   (let ((version "1.11.1")
         ;; Note: use bin/geth-update-helper.scm to update the hashes
-        (hashes (read-module-relative-file "bee-binary.hashes")))
+        (hashes (read-hashes-file "bee-binary")))
     (package
       (name "bee-binary")
       (version version)

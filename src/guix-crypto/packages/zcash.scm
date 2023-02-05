@@ -40,7 +40,7 @@
 
 (define-public zcash-binary
   ;; Note: use bin/geth-update-helper.scm to update the hashes
-  (let ((hashes (read-module-relative-file "zcash-binary.hashes")))
+  (let ((hashes (read-hashes-file "zcash-binary")))
     (package
       (name "zcash-binary")
       (version "4.7.0")

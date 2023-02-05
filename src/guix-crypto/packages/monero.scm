@@ -45,7 +45,7 @@
 (define-public feather-binary
   (let* ((version "2.3.0")
          ;; Note: use bin/geth-update-helper.scm to update the hashes
-         (hashes (read-module-relative-file "feather-binary.hashes")))
+         (hashes (read-hashes-file "feather-binary")))
     (package
       (name "feather-binary")
       (version version)

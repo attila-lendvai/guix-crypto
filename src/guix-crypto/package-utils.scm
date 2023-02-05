@@ -22,7 +22,7 @@
   #:use-module (guix packages)
   #:use-module (guix ui)
   #:use-module (ice-9 match)
-  #:export (read-module-relative-file))
+  #:export (read-hashes-file))
 
 (define (%read-module-relative-file module filename)
   (with-input-from-file
@@ -32,14 +32,16 @@
           (error "%read-module-relative-file failed for" filename))
     read))
 
-(define-syntax read-module-relative-file
+(define-syntax read-hashes-file
   (lambda (syn)
     (syntax-case syn ()
       ((_ filename)
        (with-syntax
-           ;; Read the file at compile time and macroexpand to the first form.
+           ;; Reads the file at compile time and macroexpands to the first form in it.
            ((form (%read-module-relative-file (current-module)
-                                              (syntax->datum #'filename))))
+                                              (string-append "hashes/"
+                                                             (syntax->datum #'filename)
+                                                             ".hashes"))))
          #''form)))))
 
 (define-public (unsupported-arch package-name system)

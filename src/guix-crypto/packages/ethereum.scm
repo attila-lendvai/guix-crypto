@@ -45,7 +45,7 @@
   (let* ((commit-hash "e5eb32ac") ; first 8 digits of the tagged commit's hash
          (version "1.10.26")
          ;; Note: use bin/geth-update-helper.scm to update the hashes
-         (hashes (read-module-relative-file "geth-binary.hashes")))
+         (hashes (read-hashes-file "geth-binary")))
     (package
       (name "geth-binary")
       (version version)
@@ -160,7 +160,7 @@ programming language.")
   (let* ((version "1.16.1")
          (commit "644fe89f")
          ;; Note: use bin/geth-update-helper.scm to update the hashes
-         (hashes (read-module-relative-file "nethermind-binary.hashes")))
+         (hashes (read-hashes-file "nethermind-binary")))
     (package
       (name "nethermind-binary")
       (version version)
@@ -268,7 +268,7 @@ work on Guix.")
 (define-public lighthouse-binary
   (let* ((version "3.4.0")
          ;; Note: use bin/geth-update-helper.scm to update the hashes
-         (hashes (read-module-relative-file "lighthouse-binary.hashes")))
+         (hashes (read-hashes-file "lighthouse-binary")))
     (package
       (name "lighthouse-binary")
       (version version)

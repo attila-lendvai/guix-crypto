@@ -141,7 +141,7 @@
                      (set! db (cons (cons guix-arch (hash-arch upstream-arch)) db)))
                    upstream-archs guix-archs)
                   (let ((db-file (string-append (dirname (current-filename))
-                                                "/../src/guix-crypto/packages/"
+                                                "/../src/guix-crypto/packages/hashes/"
                                                 pkg-name ".hashes")))
                     (false-if-exception (delete-file db-file))
                     (with-output-to-file db-file
