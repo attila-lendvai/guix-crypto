@@ -63,13 +63,6 @@
       (build-system binary-build-system)
       (arguments
        (list
-        #:imported-modules (source-module-closure
-                            `((guix-crypto utils)
-                              ,@%binary-build-system-modules)
-                            #:select? default-module-filter)
-        #:modules '((guix build utils)
-                    (guix-crypto utils)
-                    (nonguix build binary-build-system))
         #:strip-binaries? #f            ; The less we modify, the better.
         #:patchelf-plan ''(("geth")
                            ("clef")
@@ -181,13 +174,6 @@ programming language.")
       (arguments
        (let ((share-dir (string-append "/share/" name "-" version "/")))
          (list
-          #:imported-modules (source-module-closure
-                              `((guix-crypto utils)
-                                ,@%binary-build-system-modules)
-                              #:select? default-module-filter)
-          #:modules '((guix build utils)
-                      (guix-crypto utils)
-                      (nonguix build binary-build-system))
           ;; We install the binaries into the share-dir, so that they can find
           ;; the necessary files relative to the binary's path. They are
           ;; symlinked into the bin/ dir in a separate phase below.
