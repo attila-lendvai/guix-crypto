@@ -296,7 +296,7 @@ a local Gnosis chain node instance, then you can add its name here.")
   (string->symbol (simple-format #f "bee-~A-~A" swarm-name bee-index)))
 
 (define (make-shepherd-service/clef service-config)
-  (with-service-gexp-modules '()
+  (with-service-gexp-modules '((guix-crypto utils-for-clef))
     (match-record service-config <swarm-service-configuration>
         (swarm geth clef-user swarm-group)
       (match-record swarm <swarm>
@@ -306,7 +306,9 @@ a local Gnosis chain node instance, then you can add its name here.")
                                        swarm-name))
          (provision (list (clef-service-name swarm-name)))
          (requirement '(networking file-systems))
-         (modules +default-service-modules+)
+         (modules (append
+                   '((guix-crypto utils-for-clef))
+                   +default-service-modules+))
          (start
           (let* ((data-dir     (clef-data-directory     swarm-name))
                  (keystore-dir (clef-keystore-directory swarm-name))
