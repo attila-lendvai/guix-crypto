@@ -39,8 +39,7 @@
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 format)
   #:export        ; Also note the extensive use of DEFINE-PUBLIC below
-  (with-log-directory
-   match-record ;; TODO temporarily, see below
+  (match-record ;; TODO temporarily, see below
    with-service-environment
    define-public*))
 
