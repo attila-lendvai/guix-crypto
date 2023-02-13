@@ -331,25 +331,25 @@ a local Gnosis chain node instance, then you can add its name here.")
 
                        #$(clef-activation-gexp service-config)
 
-                       (define forkexec
-                         (make-forkexec-constructor
-                          #$cmd
-                          #:user #$clef-user
-                          #:group #$swarm-group
-                          #:log-file (string-append (*log-directory*) "/clef.log")
-                          #:environment-variables
-                          (list (string-append "HOME=" #$data-dir)
-                                (string-append "PATH=" path)
-                                (string-append "CLEF_PASSWORD="
-                                               (read-file-to-string
-                                                #$(clef-password-file swarm-name)))
-                                "LC_ALL=en_US.UTF-8")))
+                       (log.debug "Will launch clef using cmd ~A" #$cmd)
 
-                       ;; We need to do this here, because we must not return
-                       ;; from start until clef is properly up and running,
-                       ;; otherwise the (requirement `(clef-service-name)) is
-                       ;; useless on the bee service.
-                       (let ((pid (apply forkexec args)))
+                       (let* ((clef-password (read-file-to-string
+                                              #$(clef-password-file swarm-name)))
+                              (pid (fork+exec-command
+                                    #$cmd
+                                    #:user #$clef-user
+                                    #:group #$swarm-group
+                                    #:log-file (string-append (*log-directory*) "/clef.log")
+                                    #:environment-variables
+                                    (list (string-append "HOME=" #$data-dir)
+                                          (string-append "PATH=" path)
+                                          (string-append "CLEF_PASSWORD=" clef-password)
+                                          "LC_ALL=en_US.UTF-8"))))
+
+                         ;; We need to do this here, because we must not return
+                         ;; from START until Clef is properly up and running,
+                         ;; otherwise the (REQUIREMENT `(CLEF-SERVICE-NAME)) is
+                         ;; useless on the bee service.
                          (ensure-ipc-file-permissions pid #$(clef-ipc-file swarm-name))
                          pid))))))
          (stop #~(make-kill-destructor)))))))
