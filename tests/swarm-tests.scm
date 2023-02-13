@@ -51,6 +51,7 @@
   #:use-module (gnu packages tmux)
   #:use-module (guix gexp)
   #:use-module (guix git)
+  #:use-module (guix git-download)
   #:use-module (guix store)
   #:use-module (guix modules)
   #:use-module (guix monads)
@@ -59,6 +60,29 @@
   #:use-module (ice-9 match)
   #:export (run-basic-test
             *test-swarm-starting*))
+
+(define *use-custom-shepherd* #true)
+(define *parent-shepherd-package* shepherd-0.9)
+(define *custom-shepherd-dir* "/home/alendvai/workspace/guix/shepherd")
+(define *custom-shepherd-only-from-commits* #false)
+
+(define custom-shepherd
+  (package
+    (inherit *parent-shepherd-package*)
+    (version "dev")
+    (source
+     (if *custom-shepherd-only-from-commits*
+         (git-checkout
+          (url (string-append "file://" *custom-shepherd-dir*))
+          (branch "attila")             ; not optional
+          ;;(commit "607f38e5104b9b03e020cd071535a840b4168e11")
+          )
+         (local-file *custom-shepherd-dir*
+                     #:recursive? #t
+                     #:select? (git-predicate *custom-shepherd-dir*))))
+    (arguments
+     `(#:tests? #false
+       ,@(package-arguments *parent-shepherd-package*)))))
 
 (define *swarm-os*
   (operating-system
@@ -125,7 +149,17 @@
                              (sysctl-configuration
                               (settings (append '(("fs.file-max" . "500000")
                                                   ("fs.inotify.max_user_watches" . "524288"))
-                                                %default-sysctl-settings)))))))))
+                                                %default-sysctl-settings)))))))
+    ;; Use own Shepherd package.
+    (essential-services
+     (modify-services (operating-system-default-essential-services
+                       this-operating-system)
+       (shepherd-root-service-type config =>
+                                   (shepherd-configuration
+                                    (inherit config)
+                                    (shepherd (if *use-custom-shepherd*
+                                                  custom-shepherd
+                                                  shepherd))))))))
 
 (define *swarm-marionette-os*
   (marionette-operating-system
