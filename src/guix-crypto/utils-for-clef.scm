@@ -32,6 +32,7 @@
   #:use-module (srfi srfi-26)
   #:use-module (srfi srfi-34)
   #:use-module (srfi srfi-71)
+  #:use-module (ice-9 control)
   #:use-module (ice-9 match)
   #:use-module (ice-9 ports)
   #:use-module (ice-9 rdelim)
@@ -42,91 +43,84 @@
   #:export        ; Also note the extensive use of DEFINE-PUBLIC below
   ())
 
-;; Clef command list: https://github.com/ethereum/go-ethereum/blob/master/signer/core/uiapi.go
+;; Clef command list:
+;; https://github.com/ethereum/go-ethereum/blob/master/signer/core/uiapi.go
 
-(define-public* (clef-stdio-loop pipe clef-password node-count)
+(define-public* (clef-stdio-loop pid input output clef-password)
   (log.debug "CLEF-STDIO-LOOP is speaking")
-  (let* ((id 0)
-         (next-line (lambda ()
-                      (let loop ((line (read-line pipe)))
-                        (log.debug "Got line ~S" line)
-                        (if (equal? "" line)
-                            (loop (read-line pipe))
-                            line))))
-         (respond (lambda (fmt . args)
-                    (let ((response (apply format #false fmt args)))
-                      (log.debug "Will respond ~S" response)
-                      (put-string pipe response))
-                    ;;(newline pipe)
-                    (force-output pipe)))
-         (next-id (lambda ()
-                    (set! id (1+ id))
-                    id)))
-    (let* ((master-password-rx (make-regexp "\"id\":([0-9]+).*ui_onInputRequired.*Master Password"))
-           (hit (regexp-exec master-password-rx (next-line))))
-      (if hit
-          (begin
-            (set! id (string->number (match:substring hit 1)))
-            (log.debug "Answering master password")
-            (respond "{ \"jsonrpc\": \"2.0\", \"id\":~A, \"result\": { \"text\":\"~A\" } }"
-                     id clef-password))
-          (error "Clef didn't ask for the master password?!")))
+  (let/ec quit
+    (let* ((id 0)
+           (assert-clef-is-alive (lambda ()
+                                   ;; (log.dribble "is clef alive on pid ~S?" pid)
+                                   (unless (or (not pid)
+                                               (is-pid-alive? pid))
+                                     (log.debug "pid ~S is gone, fiber is exiting..." pid)
+                                     (quit #f))))
+           (next-line (lambda ()
+                        (assert-clef-is-alive)
+                        ;; (log.debug "entering read-line")
+                        (let ((line (read-line input)))
+                          ;; TODO don't log the content itself
+                          (log.debug "Got line ~S" line)
+                          (if (eof-object? line)
+                              (begin
+                                (log.debug "Got EOF from Clef, fiber is exiting...")
+                                (quit #f))
+                              line))))
+           (respond (lambda (fmt . args)
+                      (assert-clef-is-alive)
+                      (let ((response (apply format #false fmt args)))
+                        ;; TODO don't log the content itself
+                        (log.debug "Sending response to Clef ~S" response)
+                        (put-string output response))
+                      ;;(newline pipe)
+                      (force-output output)))
+           (next-id (lambda ()
+                      (set! id (1+ id))
+                      id)))
+      (log.dribble "CLEF-STDIO-LOOP is waiting for the Master Password prompt")
+      (let* ((master-password-rx (make-regexp "\"id\":([0-9]+).*ui_onInputRequired.*Master Password"))
+             (hit (regexp-exec master-password-rx (next-line))))
+        (if hit
+            (begin
+              (set! id (string->number (match:substring hit 1)))
+              (log.debug "Answering master password")
+              (respond "{ \"jsonrpc\": \"2.0\", \"id\":~A, \"result\": { \"text\":\"~A\" } }"
+                       id clef-password))
+            (error "Clef didn't ask for the master password?!")))
 
-    (let ((signer-startup-rx (make-regexp "ui_onSignerStartup")))
-      (if (regexp-exec signer-startup-rx (next-line))
-          (log.debug "Signer has started up")
-          (error "Clef didn't send ui_onSignerStartup?!")))
+      (let ((signer-startup-rx (make-regexp "ui_onSignerStartup")))
+        (if (regexp-exec signer-startup-rx (next-line))
+            (log.debug "Signer has started up")
+            (error "Clef didn't send ui_onSignerStartup?!")))
 
-    (log.debug "Querying clef account_list")
-    (respond "{\"id\": ~A, \"jsonrpc\": \"2.0\", \"method\": \"clef_listAccounts\"}"
-             (next-id))
-
-    ;; Let's ensure that we have at least NODE-COUNT clef accounts
-    (let ((account-response (next-line)))
-      (log.debug "The account list: ~S" account-response)
-      ;;(hash-result-regexp (make-regexp "\"result\":\"0x([0-9a-fA-F]{40})\""))
-      )
-
-    ;; Log everything else as a warning
-    (let loop ((response (next-line)))
-      (log.warn "Unexpected communication from Clef: ~S" response)
-      (loop (next-line)))))
-
-#;(define-public* (clef-stdio-loop pipe clef-password)
-  (log.debug "CLEF-STDIO-LOOP is speaking")
-  (let* ((next-line (lambda ()
-                      (read-line pipe)))
-         (hash-result-regexp (make-regexp "\"result\":\"0x([0-9a-fA-F]{40})\""))
-         (matchers
-          (list
-           (cons (make-regexp "\"id\":([0-9]+).*ui_onInputRequired.*Master Password")
-                 (lambda (hit)
-                   (let ((id (match:substring hit 1)))
-                     (log.debug "Answering master password")
-                     (format pipe "{ \"jsonrpc\": \"2.0\", \"id\":~A, \"result\": { \"text\":\"~A\" } }"
-                             id clef-password))))
-           (cons (make-regexp "\"id\":([0-9]+).*ui_onInputRequired.*New account password")
-                 (lambda (hit)
-                   (let ((id (match:substring hit 1)))
-                     (log.debug "Answering new account password")
-                     (format pipe "{ \"jsonrpc\": \"2.0\", \"id\":~A, \"result\": { \"text\":\"~A\" } }"
-                             id clef-password)
-                     (let ((response (next-line)))
-                       (if (set! hit (regexp-exec hash-result-regexp response))
-                           (log.debug "Successfully created account 0x~A" (match:substring hit 1))
-                           (log.debug "Failed to create account: ~S" response))))))
-           (cons (make-regexp ".*")
-                 (lambda (hit)
-                   (error "Clef said something unexpected:" (match:substring hit)))))))
-    (let loop ((line (next-line)))
-      (unless (eof-object? line)
-        (log.debug "Clef said '~A'" line)
-        (for-each
-         (match-lambda
-           ((regexp . handler)
-            (let ((hit (regexp-exec regexp line)))
-              (when hit
-                (handler hit)
-                (loop (next-line))))))
-         matchers)
-        (error "This shouldn't have been reached")))))
+      (let* ((hash-result-regexp (make-regexp "\"result\":\"0x([0-9a-fA-F]{40})\""))
+             (matchers
+              (list
+               (cons (make-regexp "\"id\":([0-9]+).*ui_onInputRequired.*New account password")
+                     (lambda (hit)
+                       (let ((id (match:substring hit 1)))
+                         (log.debug "Answering new account password for request id ~A" id)
+                         (format pipe "{ \"jsonrpc\": \"2.0\", \"id\":~A, \"result\": { \"text\":\"~A\" } }"
+                                 id clef-password)
+                         (let* ((response (next-line))
+                                (hit (regexp-exec hash-result-regexp response)))
+                           (if hit
+                               (log.debug "Successfully created account 0x~A" (match:substring hit 1))
+                               (log.debug "Failed to create account: ~S" response))))))
+               (cons (make-regexp ".*")
+                     (lambda (hit)
+                       (error "Clef said something unexpected:" (match:substring hit)))))))
+        (let loop ((request (next-line)))
+          (unless (eof-object? request)
+            (log.debug "Clef said '~A'" request)
+            (for-each
+             (match-lambda
+               ((regexp . handler)
+                (let ((hit (regexp-exec regexp request)))
+                  (when hit
+                    (handler hit)
+                    (loop (next-line))))))
+             matchers)
+            (log.error "This shouldn't have been reached; clef said: ~S" request)
+            (error "This shouldn't have been reached; clef said:" request)))))))

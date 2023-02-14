@@ -320,9 +320,6 @@ a local Gnosis chain node instance, then you can add its name here.")
                               #$(number->string clef-chain-id)
                               #$(rules.js)
                               #$(upstream-bee-clef-file "/packaging/4byte.json"))))
-            ;; TODO it would be nice to get rid of the start shell script, but
-            ;; i don't want to get into pipes and stuff in scheme when
-            ;; upstream has already put together a shell script.
             #~(lambda args
                 #$(swarm-service-gexp
                    service-config
@@ -335,24 +332,74 @@ a local Gnosis chain node instance, then you can add its name here.")
 
                        (let* ((clef-password (read-file-to-string
                                               #$(clef-password-file swarm-name)))
-                              (pid (fork+exec-command
-                                    #$cmd
-                                    #:user #$clef-user
-                                    #:group #$swarm-group
-                                    #:log-file (string-append (*log-directory*) "/clef.log")
-                                    #:environment-variables
-                                    (list (string-append "HOME=" #$data-dir)
-                                          (string-append "PATH=" path)
-                                          (string-append "CLEF_PASSWORD=" clef-password)
-                                          "LC_ALL=en_US.UTF-8"))))
+                              (clef-stdout #$(string-append data-dir "/stdout"))
+                              (clef-stdin  #$(string-append data-dir "/stdin")))
 
-                         ;; We need to do this here, because we must not return
-                         ;; from START until Clef is properly up and running,
-                         ;; otherwise the (REQUIREMENT `(CLEF-SERVICE-NAME)) is
-                         ;; useless on the bee service.
-                         (ensure-ipc-file-permissions pid #$(clef-ipc-file swarm-name))
-                         pid))))))
-         (stop #~(make-kill-destructor)))))))
+                         (false-if-exception (delete-file clef-stdout))
+                         (false-if-exception (delete-file clef-stdin))
+
+                         (let ((pid (fork+exec-command
+                                     #$cmd
+                                     #:user #$clef-user
+                                     #:group #$swarm-group
+                                     #:log-file (string-append (*log-directory*) "/clef.log")
+                                     #:environment-variables
+                                     (list (string-append "HOME=" #$data-dir)
+                                           (string-append "PATH=" path)
+                                           (string-append "CLEF_PASSWORD=" clef-password)
+                                           "LC_ALL=en_US.UTF-8"))))
+
+                           ((@ (fibers) spawn-fiber)
+                            (lambda ()
+                              (let ((wait-some (lambda ()
+                                                 ((@ (fibers) sleep) 0.3))))
+                                (log.debug "Clef fiber is speaking, clef pid is ~S" pid)
+                                (let loop ()
+                                  (unless (is-pid-alive? pid)
+                                    (wait-some)
+                                    (loop)))
+                                (log.debug "clef process is available according to (is-pid-alive? pid)")
+                                (let loop ()
+                                  (unless (file-exists? clef-stdout)
+                                    (wait-some)
+                                    (loop)))
+                                (log.debug "File ~S showed up, about to call CLEF-STDIO-LOOP" clef-stdout)
+
+                                ;; TODO this doesn't work. at some point we get a file closed error on the input stream
+                                ;; possibly due to how fiber does the non-local returns/continuations?
+                                ;; (call-with-input-file clef-stdout
+                                ;;   (lambda (input)
+                                ;;     (call-with-output-file clef-stdin
+                                ;;       (lambda (output)
+                                ;;         (clef-stdio-loop pid input output
+                                ;;                          clef-password)))))
+
+                                ;; TODO this open/close structure not safe for interim errors and whatnot
+                                (let ((input  (open-file clef-stdout "r"))
+                                      (output (open-file clef-stdin  "w")))
+                                  (make-port-non-blocking! input)
+                                  (make-port-non-blocking! output)
+
+                                  (clef-stdio-loop pid input output clef-password)
+
+                                  (close-port input)
+                                  (close-port output)))))
+
+                           ;; We need to do this here, because we must not return
+                           ;; from START until Clef is properly up and running,
+                           ;; otherwise the (REQUIREMENT `(CLEF-SERVICE-NAME)) is
+                           ;; useless on the bee service.
+                           (ensure-ipc-file-permissions pid #$(clef-ipc-file swarm-name))
+                           pid)))))))
+         (stop
+          (let* ((data-dir (clef-data-directory swarm-name)))
+            #~(lambda (pid . args)
+                (apply (make-kill-destructor) pid args)
+                ;; Just some best effort cleanup that is not necessary.
+                (false-if-exception (delete-file #$(string-append data-dir "/clef.ipc")))
+                (false-if-exception (delete-file #$(string-append data-dir "/stdin")))
+                (false-if-exception (delete-file #$(string-append data-dir "/stdout")))
+                #false))))))))
 
 (define (make-shepherd-service/bee bee-index service-config singular?)
   (with-service-gexp-modules '()

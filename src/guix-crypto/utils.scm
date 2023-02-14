@@ -43,6 +43,7 @@
   #:use-module (ice-9 format)
   #:use-module (ice-9 ftw)
   #:use-module (system foreign)
+  ;; #:use-module (fibers) ;; TODO this breaks compilation, but only when using guix system vm, not in geiser
   #:export        ; Also note the extensive use of DEFINE-PUBLIC below
   (is-pid-alive?
    with-log-directory
@@ -286,13 +287,15 @@
         (begin
           (format #t "Waiting for the file ~S to show up; ~F secs passed.~%" path time-passed)
           (log.debug "Waiting for the file ~S to show up; ~F secs passed." path time-passed)
-          (sleep 1)
+          ((@ (fibers) sleep) 1)
           (set! time-passed (- (get-monotonic-time) start))
           (set! pid-pair    (waitpid pid WNOHANG))
           (let ((child-exited? (not (zero? (car pid-pair)))))
             (and (< time-passed timeout)
                  (not child-exited?)
                  (not (file-exists? path))))))
+    ;; not very useful because of the sleep 1... (format #t "File showed up after ~F secs.~%" time-passed)
+    (log.debug "wait-for-file for ~S is exiting after ~F secs." path time-passed)
     (values time-passed (car pid-pair) (cdr pid-pair))))
 
 (define-public* (ensure-ipc-file-permissions pid path #:optional (perms #o660))
