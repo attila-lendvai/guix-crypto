@@ -116,7 +116,14 @@
           (display-backtrace (make-stack #t) port))))))
   (values))
 
+;; TODO handle the categories...
 (define-public (log.dribble . args)
+  (apply log.debug args))
+
+(define-public (log.warn . args)
+  (apply log.debug args))
+
+(define-public (log.info . args)
   (apply log.debug args))
 
 (define-public (log.error . args)
@@ -161,6 +168,11 @@
   (call-with-input-file path
     (lambda (port)
       (get-string-all port))))
+
+(define-public (make-port-non-blocking! port)
+  (let ((flags (fcntl port F_GETFL)))
+    (fcntl port F_SETFL (logior O_NONBLOCK flags))
+    port))
 
 ;; (define-public (read-file-to-sexps path)
 ;;   (let ((forms '()))
