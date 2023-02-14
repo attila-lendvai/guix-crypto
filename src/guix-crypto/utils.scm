@@ -42,8 +42,10 @@
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 format)
   #:use-module (ice-9 ftw)
+  #:use-module (system foreign)
   #:export        ; Also note the extensive use of DEFINE-PUBLIC below
-  (with-log-directory
+  (is-pid-alive?
+   with-log-directory
    with-service-environment
    define-public*))
 
@@ -246,6 +248,14 @@
   (for-each (cute chown-recursively owner group <>)
             directories)
   (values))
+
+(define is-pid-alive?
+  (let ((kill-syscall (pointer->procedure int
+                                          (dynamic-func "kill" (dynamic-link))
+                                          `(,int ,int)
+                                          #:return-errno? #t)))
+    (lambda (pid)
+      (equal? 0 (kill-syscall pid 0)))))
 
 (define-public (get-monotonic-time)
   ;; TODO maybe this should return a float?
