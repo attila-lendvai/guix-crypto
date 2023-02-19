@@ -17,7 +17,7 @@
 
 ;; Run with something like this:
 ;; $(guix system --no-graphic vm ~/workspace/guix/guix-crypto/tests/swarm-tests.scm) -m 2048
-;; $(./pre-inst-env guix system --no-graphic vm --share=/var/lib=$HOME/workspace/guix/var-lib-swarm-of-guest-vm ~/workspace/guix/guix-crypto/tests/swarm-tests.scm) -m 2048
+;; $(./pre-inst-env guix system --no-graphic vm --share=$HOME/workspace/guix/var-lib-of-guest-vm=/var/lib ~/workspace/guix/guix-crypto/tests/swarm-tests.scm) -m 2048
 
 (define-module (swarm-tests)
   #:use-module (guix-crypto utils)

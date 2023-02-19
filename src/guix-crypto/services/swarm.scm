@@ -18,6 +18,7 @@
 ;; TODO
 ;; - Use XDG_STATE_HOME for log files to support non-root shepherd?
 ;;   - https://issues.guix.gnu.org/53781
+;; - make sure that passwords on the stack are not printed in backtraces
 
 (define-module (guix-crypto services swarm)
   #:use-module (guix-crypto utils)
@@ -374,14 +375,14 @@ a local Gnosis chain node instance, then you can add its name here.")
                       db-open-files-limit)
 
          (define display-address-action
-            (shepherd-action
-             (name 'display-address)
-             (documentation "Print the Bee node's Ethereum address.")
-             (procedure
-              #~(lambda _
-                  (let* ((acc-file #$(bee-account-file swarm-name bee-index))
-                         (address (read-file-to-string acc-file)))
-                    (display address))))))
+           (shepherd-action
+            (name 'display-address)
+            (documentation "Print the Bee node's Ethereum address.")
+            (procedure
+             #~(lambda _
+                 (let* ((acc-file #$(bee-account-file swarm-name bee-index))
+                        (address (read-file-to-string acc-file)))
+                   (display address))))))
 
          (shepherd-service
           (documentation (simple-format #f "Swarm bee node ~S in swarm ~S."
@@ -476,6 +477,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                "02hrsykn47rp5zhm5dic76pxi5618b5p3qyz8mkxwf0d9s5bnr17"))))))
     (file-append bee-clef-git relative-path)))
 
+;; TODO maybe this is not even needed anymore in the fiber based clef stdio setup?
 (define (rules.js)
   (upstream-bee-clef-file "/packaging/rules.js"))
 

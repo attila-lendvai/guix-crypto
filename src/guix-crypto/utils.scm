@@ -281,7 +281,7 @@
      internal-time-units-per-second))
 
 ;; NOTE using DEFINE-PUBLIC* here results in an undefined function
-;; error below, probably because BEGIN breaking toplevelness.
+;; error below, probably because BEGIN is breaking toplevelness.
 (define* (wait-for-file pid path #:optional (timeout 60))
   (false-if-exception
    (delete-file path))
