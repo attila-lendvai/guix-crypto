@@ -86,8 +86,14 @@
   ;; TODO maybe use guile-curl instead:
   ;; https://github.com/spk121/guile-curl
   (format #t "Downloading file ~A~%  from ~A~%" file uri)
-  ;; TODO FIXME http 404 error messages should be deleted, otherwise continuing next time will leave trash in the files
-  (system (string-append "curl --continue-at - --location " uri " --output " file)))
+  (let ((status (system (string-append "curl --fail --continue-at - --location "
+                                       uri " --output " file))))
+    (unless (zero? (status:exit-val status))
+      (format #t "curl returned ~S, deleting output file ~A~%"
+              (status:exit-val status) file)
+      (false-if-exception
+       (delete-file file))
+      (exit EXIT_FAILURE))))
 
 (define* (download-and-verify-arch arch url-factory-args)
   (format #t "~A\t\t" arch)
