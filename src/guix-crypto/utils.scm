@@ -47,8 +47,8 @@
   #:export        ; Also note the extensive use of DEFINE-PUBLIC below
   (is-pid-alive?
    with-log-directory
-   with-service-environment
-   define-public*))
+   define-public*
+   assert))
 
 (define-syntax define-public*
   (syntax-rules ()
@@ -75,6 +75,10 @@
   (if (string? obj)
       obj
       (object->string obj)))
+
+(define-syntax-rule (assert exp)
+  (unless exp
+    (throw 'assertion-failure 'exp)))
 
 ;;;
 ;;; Logging
