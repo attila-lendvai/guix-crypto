@@ -21,6 +21,7 @@
 
 (define-module (guix-crypto services swarm)
   #:use-module (guix-crypto utils)
+  #:use-module (guix-crypto swarm-utils)
   #:use-module (guix-crypto service-utils)
   #:use-module (guix-crypto packages swarm)
   #:use-module (guix-crypto packages ethereum)
@@ -254,49 +255,9 @@ a local Gnosis chain node instance, then you can add its name here.")
 ;;;
 ;;; Service implementation
 ;;;
-(define +service-log-directory+ "/var/log/swarm/")
-
-(define-public (default-log-directory swarm-name)
-  (string-append +service-log-directory+ swarm-name))
-
-(define-public (bee-log-filename log-dir bee-index)
-  (simple-format #f "~A/bee-~A.log" log-dir bee-index))
-
-(define +service-data-directory+ "/var/lib/swarm/")
-
-(define (swarm-data-directory swarm-name)
-  (string-append +service-data-directory+ swarm-name))
-
-(define-public (bee-data-directory swarm-name bee-index)
-  (string-append (swarm-data-directory swarm-name) "/bee-"
-                 (number->string bee-index)))
-
-(define-public (bee-account-file swarm-name bee-index)
-  (string-append (bee-data-directory swarm-name bee-index) "/eth-address"))
-
-(define-public (clef-data-directory swarm-name)
-  (string-append (swarm-data-directory swarm-name) "/clef"))
-
-(define-public (clef-ipc-file swarm-name)
-  (string-append (clef-data-directory swarm-name) "/clef.ipc"))
-
-(define-public (clef-keystore-directory swarm-name)
-  (string-append (clef-data-directory swarm-name) "/keystore"))
-
-(define-public (bee-password-file swarm-name)
-  (string-append (swarm-data-directory swarm-name) "/bee-password"))
-
-(define-public (clef-password-file swarm-name)
-  (string-append (swarm-data-directory swarm-name) "/clef-password"))
-
-(define-public (clef-service-name swarm-name)
-  (string->symbol (simple-format #f "clef-~A" swarm-name)))
-
-(define-public (bee-service-name swarm-name bee-index)
-  (string->symbol (simple-format #f "bee-~A-~A" swarm-name bee-index)))
-
 (define (make-shepherd-service/clef service-config)
-  (with-service-gexp-modules '((guix-crypto utils-for-clef))
+  (with-service-gexp-modules '((guix-crypto clef-utils)
+                               (guix-crypto swarm-utils))
     (match-record service-config <swarm-service-configuration>
         (swarm geth clef-user swarm-group)
       (match-record swarm <swarm>
@@ -307,7 +268,8 @@ a local Gnosis chain node instance, then you can add its name here.")
          (provision (list (clef-service-name swarm-name)))
          (requirement '(networking file-systems))
          (modules (append
-                   '((guix-crypto utils-for-clef))
+                   '((guix-crypto clef-utils)
+                     (guix-crypto swarm-utils))
                    +default-service-modules+))
          (start
           (let* ((data-dir     (clef-data-directory     swarm-name))
@@ -371,19 +333,18 @@ a local Gnosis chain node instance, then you can add its name here.")
                                 ;;   (lambda (input)
                                 ;;     (call-with-output-file clef-stdin
                                 ;;       (lambda (output)
-                                ;;         (clef-stdio-loop pid input output
+                                ;;         (spawn-clef-stdio-fiber pid input output
                                 ;;                          clef-password)))))
 
                                 ;; TODO this open/close structure not safe for interim errors and whatnot
+                                ;; TODO who will close these files and when?
                                 (let ((input  (open-file clef-stdout "r"))
                                       (output (open-file clef-stdin  "w")))
                                   (make-port-non-blocking! input)
                                   (make-port-non-blocking! output)
 
-                                  (clef-stdio-loop pid input output clef-password)
-
-                                  (close-port input)
-                                  (close-port output)))))
+                                  (spawn-clef-stdio-fiber pid input output
+                                                          clef-password)))))
 
                            ;; We need to do this here, because we must not return
                            ;; from START until Clef is properly up and running,
@@ -432,8 +393,8 @@ a local Gnosis chain node instance, then you can add its name here.")
           (actions (list display-address-action))
           (modules +default-service-modules+)
           (start
-           (let* ((data-dir (bee-data-directory swarm-name bee-index))
-                  (account-file (bee-account-file swarm-name bee-index))
+           (let* ((data-dir     (bee-data-directory swarm-name bee-index))
+                  (libp2p-key   (string-append data-dir "/keys/libp2p.key"))
                   (bee-cfg (if singular?
                                bee-configuration
                                (bee-configuration-for-node-index
@@ -449,40 +410,41 @@ a local Gnosis chain node instance, then you can add its name here.")
                  #$(swarm-service-gexp
                     service-config
                     #~(begin
+
+                        (define (spawn-bee* action)
+                          (spawn-bee #$(file-append bee "/bin/bee")
+                                     #$config-file
+                                     action
+                                     #$swarm-name #$bee-index
+                                     #$bee-user #$swarm-group
+                                     #:swap-endpoint #$swap-endpoint
+                                     #:resolver-options #$resolver-options
+                                     #:eth-address (when #$clef-signer-enable
+                                                     (read-file-to-string
+                                                      #$(bee-account-file swarm-name bee-index)))
+                                     #:resource-limits
+                                     `((nofile ,#$(+ db-open-files-limit 4096)
+                                               ,#$(+ db-open-files-limit 4096)))))
+
                         (log.debug "Bee service is starting")
-                        #$(bee-activation-gexp service-config config-file bee-index)
-                        ;; Due to timing, we cannot add the node's eth address to
-                        ;; the config file above, because it only gets generated
-                        ;; at clef's service start time. Hence the extra round to
-                        ;; pass it as an env variable at our own start time.
-                        (let ((eth-address (when #$clef-signer-enable
-                                             (read-file-to-string #$account-file)))
-                              (cmd (list #$(file-append bee "/bin/bee")
-                                         "--config" #$config-file
-                                         "start")))
-                          (log.dribble "About to fork+exec ~S" cmd)
-                          (fork+exec-command
-                           cmd
-                           #:user #$bee-user
-                           #:group #$swarm-group
-                           #:log-file #$(bee-log-filename (default-log-directory swarm-name)
-                                                          bee-index)
-                           #:directory #$data-dir
-                           #:resource-limits
-                           `((nofile ,#$(+ db-open-files-limit 4096)
-                                     ,#$(+ db-open-files-limit 4096)))
-                           #:environment-variables
-                           (list
-                            (string-append "HOME=" #$data-dir)
-                            ;; So that these are not visible with ps, or in the
-                            ;; config file (i.e. world-readable under
-                            ;; /gnu/store/), because they may contain keys when
-                            ;; using a service like Infura.
-                            (string-append "BEE_SWAP_ENDPOINT="    #$swap-endpoint)
-                            (string-append "BEE_RESOLVER_OPTIONS=" #$resolver-options)
-                            (string-append "BEE_CLEF_SIGNER_ETHEREUM_ADDRESS="
-                                           (or eth-address ""))
-                            "LC_ALL=en_US.UTF-8"))))))))
+
+                        (ensure-directories/rec bee-user-id bee-group-id #o2770 #$data-dir)
+                        (ensure-password-file #$(bee-password-file swarm-name) bee-user-id bee-group-id)
+
+                        (ensure-clef-account #$swarm-name #$bee-index)
+
+                        ;; When first started, call `bee init` for this bee
+                        ;; instance.
+                        (unless (file-exists? #$libp2p-key)
+                          (log.debug "Invoking `bee init` for bee-index ~S in swarm ~S" #$bee-index #$swarm-name)
+                          (wait-for-pid
+                           (spawn-bee* "init")))
+
+                        ;; Due to staged compilation, we cannot add the node's
+                        ;; eth address to the config bee file, because it only
+                        ;; gets generated at service runtime. Hence we're
+                        ;; passing it as an env variable.
+                        (spawn-bee* "start"))))))
           (stop #~(make-kill-destructor))))))))
 
 (define (make-swarm-shepherd-services service-config)
@@ -543,33 +505,9 @@ a local Gnosis chain node instance, then you can add its name here.")
               (log.debug "Will invoke clef cmd: ~A" cmd)
               (invoke bash "-c" cmd))
 
-            (define (ensure-clef-account account-file)
-              (log.dribble "ENSURE-CLEF-ACCOUNT called for ~S" account-file)
-              (unless (file-exists? account-file)
-                (log.debug "Adding clef account for ~S" account-file)
-                ;; TODO comment on why the lowercasing is done, or delete it.
-                (let ((cmd (string-append
-                            "echo -n $({ "
-                            (build-clef-cmd "newaccount --lightkdf 2>/dev/null << EOF
-$CLEF_PASSWORD
-EOF
-")
-                            "} | tail -n -1 | cut -d'x' -f2 | tr '[:upper:]' '[:lower:]') >"
-                            account-file)))
-                  (invoke-clef-cmd cmd)
-                  (chmod account-file #o440))
-                (let ((eth-address (read-file-to-string account-file)))
-                  (invoke-clef-cmd (build-clef-cmd
-                                    "setpw 0x"eth-address" >/dev/null 2>&1 << EOF
-$CLEF_PASSWORD
-$CLEF_PASSWORD
-$CLEF_PASSWORD
-EOF
-")))))
-
             (ensure-directories 0 "swarm" #o2775
-                                #$+service-log-directory+
-                                #$+service-data-directory+)
+                                #$*service-log-directory*
+                                #$*service-data-directory*)
 
             (ensure-directories/rec clef-user-id clef-group-id #o750
                                     #$data-dir)
@@ -580,21 +518,6 @@ EOF
             (ensure-password-file clef-pwd-file clef-user-id clef-group-id)
 
             (log.debug "Clef activation ensured the password and the keystore")
-
-            ;; We need to ensure the bee data dirs already exist at this point,
-            ;; so that we can write the eth addresses into them.  Note:
-            ;;
-            ;;   - this calls chown -R, and it shouldn't be executed when the
-            ;;   bee node is already running (leads to probabilistic bug of file
-            ;;   not found coming from chown).
-            ;;
-            ;;   - needs to be run as root, i.e. not inside the
-            ;;   INVOKE-AS-CLEF-USER below.
-            #$@(map (lambda (bee-index)
-                      #~(ensure-directories/rec
-                         bee-user-id bee-group-id #o2770
-                         #$(bee-data-directory swarm-name bee-index)))
-                    (iota node-count))
 
             (invoke-as-user
              clef-pw
@@ -617,33 +540,7 @@ EOF"))
                                      " | cut -d' ' -f1 | tr -d '\n') "
                                      ">/dev/null 2>&1 << EOF
 $CLEF_PASSWORD
-EOF")))
-                 ;; Ensure that each bee node has a clef account
-                 #$@(map (lambda (bee-index)
-                           #~(ensure-clef-account #$(bee-account-file swarm-name bee-index)))
-                         (iota node-count))))))))))
-
-(define (bee-activation-gexp service-config config-file bee-index)
-  (match-record service-config <swarm-service-configuration>
-      (swarm bee-configuration bee)
-    (match-record bee-configuration <bee-configuration>
-        (mainnet)
-      (match-record swarm <swarm>
-          ((name swarm-name))
-        #~(let* ((data-dir      #$(bee-data-directory swarm-name bee-index))
-                 (libp2p-key    (string-append data-dir "/keys/libp2p.key")))
-
-            (ensure-directories/rec bee-user-id bee-group-id #o2770 data-dir)
-            (ensure-password-file #$(bee-password-file swarm-name) bee-user-id bee-group-id)
-
-            ;; When first started, call `bee init` for this bee instance.
-            (unless (file-exists? libp2p-key)
-              (log.debug "Invoking `bee init` for bee-index ~S in swarm ~S" #$bee-index #$swarm-name)
-              (invoke-as-user bee-pw
-                              (lambda ()
-                                (invoke/quiet #$(file-append bee "/bin/bee")
-                                              "--config" #$config-file
-                                              "init")))))))))
+EOF")))))))))))
 
 (define (swarm-service-gexp service-config body-gexp)
   "Returns a GEXP that is called before the start of any of the services.  It

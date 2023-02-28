@@ -21,5 +21,5 @@ mkfifo ${DATA_DIR}/stdin ${DATA_DIR}/stdout
 
 exec ${CLEF} --stdio-ui --keystore "${KEYSTORE}" --configdir "${DATA_DIR}" --chainid "${CHAINID}" --rules "${RULES}" --nousb --lightkdf --4bytedb-custom "${FOURBYTE}" --pcscdpath "" --auditlog "" --loglevel 3 --ipcpath "${DATA_DIR}" < ${DATA_DIR}/stdin | tee ${DATA_DIR}/stdout
 
-# this would be nice, but nothing gets executed after an exec...
+# this cleanup would be nice, but nothing gets executed after an exec...
 # rm --force ${DATA_DIR}/stdin ${DATA_DIR}/stdout ${DATA_DIR}/clef.ipc || true
