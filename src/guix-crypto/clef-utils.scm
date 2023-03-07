@@ -111,6 +111,13 @@
        (respond "{ \"jsonrpc\": \"2.0\", \"id\":~A, \"result\": { \"~A\": ~A } }"
                 id name (if value "true" "false")))
 
+     (define (respond-json id json)
+       (let ((json (cons* (cons "id" id)
+                          '("jsonrpc" . "2.0")
+                          json)))
+         (log.debug "CLEF-STDIO-LOOP responding with json ~S" json)
+         (respond (scm->json-string json))))
+
      (log.dribble "CLEF-STDIO-LOOP is waiting for the Master Password prompt")
 
      (let* ((method params id _ (read-request))
@@ -149,11 +156,29 @@
 
                      ;; approve some functionality
                      (cons (lambda (method . _)
-                             (member method '("ui_approveNewAccount")))
+                             (member method '("ui_approveNewAccount"
+                                              "ui_approveSignData")))
 
                            (lambda (method params id . _)
                              (log.debug "CLEF-STDIO-LOOP approving method ~A, id ~A" method id)
                              (respond-bool id "approved" #true)))
+
+                     ;; ui_approveListing must answer with a list of accounts
+                     (cons (lambda (method . _)
+                             (equal? method "ui_approveListing"))
+
+                           (lambda (method params id request)
+                             (log.debug "CLEF-STDIO-LOOP approving method ~A, id ~A" method id)
+                             (respond-json id `((result . ((accounts . ,(assoc-ref params "accounts"))))))))
+
+                     ;; ui_approveTx must answer with the transaction
+                     (cons (lambda (method . _)
+                             (equal? method "ui_approveTx"))
+
+                           (lambda (method params id request)
+                             (log.debug "CLEF-STDIO-LOOP approving method ~A, id ~A" method id)
+                             (respond-json id `((result . ((approved . #true)
+                                                           (transaction . ,(assoc-ref params "transaction"))))))))
 
                      (cons (const #true)
                            (lambda (method params id request)

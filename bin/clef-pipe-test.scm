@@ -74,7 +74,6 @@
                 "--keystore" ,(clef-keystore-directory swarm-name)
                 "--configdir" ,(clef-data-directory swarm-name)
                 "--chainid" "100"
-                "--rules" "/gnu/store/7dj69wzrfpnmqqah81424aa94qvskk11-bee-clef-v0.13.2-checkout/packaging/rules.js"
                 "--nousb"
                 "--lightkdf"
                 "--4bytedb-custom" "/gnu/store/7dj69wzrfpnmqqah81424aa94qvskk11-bee-clef-v0.13.2-checkout/packaging/4byte.json"

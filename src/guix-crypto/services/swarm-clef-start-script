@@ -6,7 +6,7 @@ CLEF=$1
 DATA_DIR=$2
 KEYSTORE=$3
 CHAINID=$4
-RULES=$5
+#RULES=$5
 FOURBYTE=$6
 
 # echo "swarm-clef-start-script is invoked with:"
@@ -19,7 +19,7 @@ rm --force ${DATA_DIR}/stdin ${DATA_DIR}/stdout || true
 
 mkfifo ${DATA_DIR}/stdin ${DATA_DIR}/stdout
 
-exec ${CLEF} --stdio-ui --keystore "${KEYSTORE}" --configdir "${DATA_DIR}" --chainid "${CHAINID}" --rules "${RULES}" --nousb --lightkdf --4bytedb-custom "${FOURBYTE}" --pcscdpath "" --auditlog "" --loglevel 3 --ipcpath "${DATA_DIR}" < ${DATA_DIR}/stdin | tee ${DATA_DIR}/stdout
+exec ${CLEF} --stdio-ui --keystore "${KEYSTORE}" --configdir "${DATA_DIR}" --chainid "${CHAINID}" --nousb --lightkdf --4bytedb-custom "${FOURBYTE}" --pcscdpath "" --auditlog "" --loglevel 3 --ipcpath "${DATA_DIR}" < ${DATA_DIR}/stdin | tee ${DATA_DIR}/stdout
 
 # this cleanup would be nice, but nothing gets executed after an exec...
 # rm --force ${DATA_DIR}/stdin ${DATA_DIR}/stdout ${DATA_DIR}/clef.ipc || true

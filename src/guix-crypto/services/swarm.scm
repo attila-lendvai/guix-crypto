@@ -145,7 +145,7 @@ for @code{mainnet} and 2100 for @code{testnet}, otherwise it must be specified."
 ;; by letter.
 (define-configuration bee-configuration
   (clef-signer-enable    (boolean #true)
-                         "Whether to connect to a clef instance, or the Bee node should be doing \
+                         "Whether to connect to a Clef instance, or the Bee node itself should be doing \
 its own Ethereum key management.")
   (debug-api-enable      (boolean #false) "")
   (db-open-files-limit   (non-negative-integer +db-open-files-limit/default+) "")
@@ -280,7 +280,6 @@ a local Gnosis chain node instance, then you can add its name here.")
                               (string-append #$geth:clef "/bin/clef")
                               #$data-dir #$keystore-dir
                               #$(number->string clef-chain-id)
-                              #$(rules.js)
                               #$(upstream-bee-clef-file "/packaging/4byte.json"))))
             #~(lambda args
                 #$(swarm-service-gexp
@@ -476,10 +475,6 @@ a local Gnosis chain node instance, then you can add its name here.")
                "02hrsykn47rp5zhm5dic76pxi5618b5p3qyz8mkxwf0d9s5bnr17"))))))
     (file-append bee-clef-git relative-path)))
 
-;; TODO maybe this is not even needed anymore in the fiber based clef stdio setup?
-(define (rules.js)
-  (upstream-bee-clef-file "/packaging/rules.js"))
-
 (define (clef-activation-gexp service-config)
   (match-record service-config <swarm-service-configuration>
       (swarm geth node-count bee-user clef-user swarm-group)
@@ -535,13 +530,7 @@ a local Gnosis chain node instance, then you can add its name here.")
 $CLEF_PASSWORD
 $CLEF_PASSWORD
 EOF"))
-                   (invoke-clef-cmd (build-clef-cmd
-                                     "attest $(sha256sum "
-                                     #$(rules.js)
-                                     " | cut -d' ' -f1 | tr -d '\n') "
-                                     ">/dev/null 2>&1 << EOF
-$CLEF_PASSWORD
-EOF")))))))))))
+                   )))))))))
 
 (define (swarm-service-gexp service-config body-gexp)
   "Returns a GEXP that is called before the start of any of the services.  It
