@@ -42,8 +42,8 @@
   #:use-module (srfi srfi-71))
 
 (define-public geth-binary
-  (let* ((commit-hash "73b01f40") ; first 8 digits of the tagged commit's hash
-         (version "1.11.2")
+  (let* ((commit-hash "5ed08c47") ; first 8 digits of the tagged commit's hash
+         (version "1.11.3")
          ;; Note: use bin/geth-update-helper.scm to update the hashes
          (hashes (read-hashes-file "geth-binary")))
     (package
