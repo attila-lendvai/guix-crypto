@@ -53,7 +53,7 @@ swarm. First, add these services to your =config.scm=:
        (swarm-service
         #:node-count           2 ; new Clef accounts are created as needed
         #:resolver-options     "[optional ethereum mainnet endpoint for ENS]"
-        #:swap-endpoint        gnosis-ipc-path
+        #:blockchain-rpc-endpoint gnosis-ipc-path
         #:swap-initial-deposit 0 ; start nodes without any BZZ
         #:dependencies         (list gnosis-service-name))
 

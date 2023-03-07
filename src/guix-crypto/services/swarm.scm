@@ -149,7 +149,6 @@ for @code{mainnet} and 2100 for @code{testnet}, otherwise it must be specified."
 its own Ethereum key management.")
   (debug-api-enable      (boolean #false) "")
   (db-open-files-limit   (non-negative-integer +db-open-files-limit/default+) "")
-  (global-pinning-enable (boolean #false) "")
   (verbosity             (verbosity-value 'info)
                          "Either an integer between 0 and 5, or one of the \
 symbols: @code{'silent}, @code{'error}, @code{'warn}, @code{'info}, \
@@ -161,7 +160,7 @@ symbols: @code{'silent}, @code{'error}, @code{'warn}, @code{'info}, \
   (resolver-options      (string "")
                          "A blockchain node endpoint to connect to for resolving ENS names.
 Normally it should be a node connected to the Ethereum mainnet.")
-  (swap-endpoint         string "A blockchain node endpoint to connect to.")
+  (blockchain-rpc-endpoint         string "A blockchain node endpoint to connect to.")
   (swap-initial-deposit  maybe-non-negative-integer "")
 
   (mainnet               (boolean #true) "")
@@ -371,7 +370,7 @@ a local Gnosis chain node instance, then you can add its name here.")
      (match-record swarm <swarm>
          ((name swarm-name) network-id)
        (match-record bee-configuration <bee-configuration>
-           (full-node resolver-options swap-endpoint clef-signer-enable
+           (full-node resolver-options blockchain-rpc-endpoint clef-signer-enable
                       db-open-files-limit)
 
          (define display-address-action
@@ -418,7 +417,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                                      action
                                      #$swarm-name #$bee-index
                                      #$bee-user #$swarm-group
-                                     #:swap-endpoint #$swap-endpoint
+                                     #:blockchain-rpc-endpoint #$blockchain-rpc-endpoint
                                      #:resolver-options #$resolver-options
                                      #:eth-address (when #$clef-signer-enable
                                                      (read-file-to-string
@@ -671,13 +670,12 @@ Ethereum Clef instance as a group of Shepherd services.")))
 (define* (swarm-service #:key
                         (node-count 1)
                         (resolver-options "")
-                        (swap-endpoint "ws://localhost:8546")
+                        (blockchain-rpc-endpoint "ws://localhost:8546")
                         (swap-initial-deposit %unset-value)
                         (swarm swarm/mainnet)
                         (dependencies '())
                         (bee-supplementary-groups '())
                         (debug-api-enable #false)
-                        (global-pinning-enable #false)
                         (db-open-files-limit +db-open-files-limit/default+))
   (service swarm-service-type
            (swarm-service-configuration
@@ -688,9 +686,8 @@ Ethereum Clef instance as a group of Shepherd services.")))
             (bee-configuration
              (bee-configuration
               (resolver-options      resolver-options)
-              (swap-endpoint         swap-endpoint)
+              (blockchain-rpc-endpoint blockchain-rpc-endpoint)
               (swap-initial-deposit  swap-initial-deposit)
               (debug-api-enable      debug-api-enable)
               (data-dir              (bee-data-directory (swarm-name swarm) 0))
-              (global-pinning-enable global-pinning-enable)
               (db-open-files-limit   db-open-files-limit))))))

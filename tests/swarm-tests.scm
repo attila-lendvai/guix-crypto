@@ -105,7 +105,7 @@
       (service dhcp-client-service-type)
 
       ;; (swarm-service #:node-count 2
-      ;;                #:swap-endpoint "/var/lib/openethereum/gnosis/gnosis.ipc"
+      ;;                #:blockchain-rpc-endpoint "/var/lib/openethereum/gnosis/gnosis.ipc"
       ;;                #:bee-supplementary-groups '("openethereum")
       ;;                #:swap-initial-deposit 0
       ;;                #:dependencies '(gnosis))
@@ -118,7 +118,7 @@
         (additional-service-requirements '(gnosis))
         (bee-configuration
          (bee-configuration
-          (swap-endpoint        "/var/lib/openethereum/gnosis/gnosis.ipc")
+          (blockchain-rpc-endpoint        "/var/lib/openethereum/gnosis/gnosis.ipc")
           (swap-initial-deposit 0)
           (debug-api-enable     #true)))))
 

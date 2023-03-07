@@ -72,7 +72,7 @@
                            #:key
                            resource-limits
                            resolver-options
-                           swap-endpoint
+                           blockchain-rpc-endpoint
                            eth-address)
   (log.dribble "About to spawn bee action ~S, with config ~S, and binary ~S" action config-file binary)
   (let ((data-dir (bee-data-directory swarm-name bee-index)))
@@ -95,8 +95,9 @@
                     ;; config file (i.e. world-readable under
                     ;; /gnu/store/), because they may contain keys when
                     ;; using a service like Infura.
-                    (when swap-endpoint
-                      (string-append "BEE_SWAP_ENDPOINT=" swap-endpoint))
+                    (when blockchain-rpc-endpoint
+                      (string-append "BEE_BLOCKCHAIN_RPC_ENDPOINT="
+                                     blockchain-rpc-endpoint))
                     (when resolver-options
                       (string-append "BEE_RESOLVER_OPTIONS=" resolver-options))
                     (when eth-address
