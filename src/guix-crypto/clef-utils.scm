@@ -86,10 +86,11 @@
                         (begin
                           (log.debug "CLEF-STDIO-LOOP Got EOF from clef, returning...")
                           (quit))
-                        (json-string->scm line))))
+                        (json-string->scm line)))
+              (params (assoc-ref json "params")))
          (log.dribble "CLEF-STDIO-LOOP Got request from Clef: ~A" json)
          (values (assoc-ref json "method")
-                 (vector-ref (assoc-ref json "params") 0)
+                 (if params (vector-ref params 0) '())
                  (assoc-ref json "id")
                  json)))
 
@@ -97,7 +98,7 @@
        (assert-clef-is-alive)
        (let ((response (apply format #false fmt args)))
          ;; TODO don't log the content itself
-         (log.debug "CLEF-STDIO-LOOP Sending response to Clef ~S" response)
+         (log.debug "CLEF-STDIO-LOOP Sending response to Clef ~A" response)
          (put-string output response))
        (newline output)
        (force-output output))
@@ -133,8 +134,7 @@
         (catch 'quit
           (lambda _
             (log.debug "stdio loop fiber speaking")
-            (let* ((hash-result-regexp (make-regexp "\"result\":\"0x([0-9a-fA-F]{40})\""))
-                   (matchers
+            (let* ((matchers
                     (list
                      ;; new account password
                      (cons (lambda (method params id request)
@@ -147,12 +147,12 @@
                              (log.debug "CLEF-STDIO-LOOP Answering new account password for request id ~A" id)
                              (respond-text id clef-password)))
 
-                     ;; approve new account
+                     ;; approve some functionality
                      (cons (lambda (method . _)
-                             (equal? method "ui_approveNewAccount"))
+                             (member method '("ui_approveNewAccount")))
 
                            (lambda (method params id . _)
-                             (log.debug "CLEF-STDIO-LOOP Answering approve new account for request id ~A" id)
+                             (log.debug "CLEF-STDIO-LOOP approving method ~A, id ~A" method id)
                              (respond-bool id "approved" #true)))
 
                      (cons (const #true)
@@ -191,7 +191,7 @@
       (define (next-line)
         (let ((line (read-line input)))
           ;; TODO don't log the content itself
-          (log.debug "Got line ~S" line)
+          (log.debug "Got line ~A" line)
           (if (eof-object? line)
               (begin
                 (log.debug "Got EOF, exiting...")
