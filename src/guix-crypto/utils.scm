@@ -328,4 +328,4 @@
       (begin
         (log.debug "Setting permissions of file '~S' to #o~O" path perms)
         (chmod path perms))
-      (log.error "Unexpected outcome while waiting for file '~S'; child-pid is ~S, exit-code is ~S, time-passed is ~F" path child-pid exit-code time-passed)))
+      (log.error "Unexpected outcome while waiting for file '~S'; pid is ~S, exit-code is ~S, time-passed is ~F" path pid exit-code time-passed)))
