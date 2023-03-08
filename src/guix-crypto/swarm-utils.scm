@@ -106,20 +106,21 @@
            #:directory data-dir
            #:environment-variables
            (remove unspecified?
-                   (list
-                    "LC_ALL=en_US.UTF-8"
-                    (string-append "HOME=" data-dir)
-                    ;; So that these are not visible with ps, or in the
-                    ;; config file (i.e. world-readable under
-                    ;; /gnu/store/), because they may contain keys when
-                    ;; using a service like Infura.
-                    (when blockchain-rpc-endpoint
-                      (string-append "BEE_BLOCKCHAIN_RPC_ENDPOINT="
-                                     blockchain-rpc-endpoint))
-                    (when resolver-options
-                      (string-append "BEE_RESOLVER_OPTIONS=" resolver-options))
-                    (when eth-address
-                      (string-append "BEE_CLEF_SIGNER_ETHEREUM_ADDRESS=" eth-address))))
+                   (append
+                    (list
+                     (string-append "HOME=" data-dir)
+                     ;; So that these are not visible with ps, or in the
+                     ;; config file (i.e. world-readable under
+                     ;; /gnu/store/), because they may contain keys when
+                     ;; using a service like Infura.
+                     (when blockchain-rpc-endpoint
+                       (string-append "BEE_BLOCKCHAIN_RPC_ENDPOINT="
+                                      blockchain-rpc-endpoint))
+                     (when resolver-options
+                       (string-append "BEE_RESOLVER_OPTIONS=" resolver-options))
+                     (when eth-address
+                       (string-append "BEE_CLEF_SIGNER_ETHEREUM_ADDRESS=" eth-address)))
+                    +root-environment+))
 
            (if resource-limits
                (list #:resource-limits resource-limits)

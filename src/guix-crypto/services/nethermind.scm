@@ -282,9 +282,10 @@ the chain).")
                         #:group #$group
                         #:log-file #$(nethermind-log-filename log-dir service-name)
                         #:environment-variables
-                        (list (string-append "HOME=" #$datadir)
-                              (string-append "PATH=" path-string)
-                              "LC_ALL=en_US.UTF-8")))
+                        (append
+                         (list (string-append "HOME=" #$datadir)
+                               (string-append "PATH=" path-string))
+                         +root-environment+)))
 
                      ;; We need to do this here, because we must not return from
                      ;; START until the daemon is properly up and running,

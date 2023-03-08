@@ -210,9 +210,10 @@ the same value you provided as NETWORK.")
                       #:group #$group
                       #:log-file #$(lighthouse-log-filename log-dir service-name)
                       #:environment-variables
-                      (list (string-append "HOME=" #$datadir)
-                            (string-append "PATH=" #$path)
-                            "LC_ALL=en_US.UTF-8")))
+                      (append
+                       (list (string-append "HOME=" #$datadir)
+                             (string-append "PATH=" #$path))
+                       +root-environment+)))
 
                    ;; We need to do this here, because we must not return from
                    ;; START until the daemon is properly up and running,

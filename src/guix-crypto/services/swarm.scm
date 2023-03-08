@@ -302,10 +302,12 @@ a local Gnosis chain node instance, then you can add its name here.")
                                      #:group #$swarm-group
                                      #:log-file (string-append (*log-directory*) "/clef.log")
                                      #:environment-variables
-                                     (list (string-append "HOME=" #$data-dir)
-                                           (string-append "PATH=" path)
-                                           (string-append "CLEF_PASSWORD=" clef-password)
-                                           "LC_ALL=en_US.UTF-8"))))
+                                     (append
+                                      (list
+                                       (string-append "HOME=" #$data-dir)
+                                       (string-append "PATH=" path)
+                                       (string-append "CLEF_PASSWORD=" clef-password))
+                                      +root-environment+))))
 
                            ((@ (fibers) spawn-fiber)
                             (lambda ()
@@ -368,7 +370,7 @@ a local Gnosis chain node instance, then you can add its name here.")
        (match-record bee-configuration <bee-configuration>
            (full-node resolver-options blockchain-rpc-endpoint clef-signer-enable
                       db-open-files-limit)
-
+           ;; TODO add: cashout, withdraw, balances, settlements
          (define display-address-action
            (shepherd-action
             (name 'display-address)

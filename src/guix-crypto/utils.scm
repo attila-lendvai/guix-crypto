@@ -81,6 +81,9 @@
   (unless exp
     (throw 'assertion-failure 'exp)))
 
+(define-public +root-environment+
+  '("LC_ALL=en_US.utf8"))
+
 ;;;
 ;;; Logging
 ;;;
