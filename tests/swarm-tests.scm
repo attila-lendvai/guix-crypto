@@ -115,7 +115,7 @@
        (swarm-service-configuration
         (swarm                           swarm/mainnet)
         (node-count                      2)
-        (additional-service-requirements '(gnosis))
+        (shepherd-requirement '(gnosis))
         (bee-configuration
          (bee-configuration
           (blockchain-rpc-endpoint        "/var/lib/openethereum/gnosis/gnosis.ipc")

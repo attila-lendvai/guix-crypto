@@ -188,8 +188,7 @@ nodes should join.  Defaults to swarm/mainnet.")
 @code{clef} binary).")
   (node-count            (non-negative-integer 1)
    "How many Bee nodes should be started.")
-  ;; TODO rename to shepherd-requirement
-  (additional-service-requirements
+  (shepherd-requirement
    (list '())
    "Guix service names that are appended to the REQUIREMENT field of each \
 Bee node's Shepherd service instance; i.e. here you can specify extra \
@@ -363,7 +362,7 @@ a local Gnosis chain node instance, then you can add its name here.")
   (with-service-gexp-modules '((guix-crypto swarm-utils))
    (match-record service-config <swarm-service-configuration>
        (swarm bee-configuration bee bee-user swarm-group node-count
-              additional-service-requirements)
+              shepherd-requirement)
      (match-record swarm <swarm>
          ((name swarm-name) network-id)
        (match-record bee-configuration <bee-configuration>
@@ -388,7 +387,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                                (if clef-signer-enable
                                    (list (clef-service-name swarm-name))
                                    '())
-                               additional-service-requirements))
+                               shepherd-requirement))
           (actions (list display-address-action))
           (modules (append
                     '((guix-crypto swarm-utils))
@@ -674,7 +673,7 @@ Ethereum Clef instance as a group of Shepherd services.")))
             (swarm                           swarm)
             (node-count                      node-count)
             (bee-supplementary-groups        bee-supplementary-groups)
-            (additional-service-requirements dependencies)
+            (shepherd-requirement            dependencies)
             (bee-configuration
              (bee-configuration
               (resolver-options      resolver-options)
