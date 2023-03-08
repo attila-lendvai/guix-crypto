@@ -256,8 +256,7 @@ a local Gnosis chain node instance, then you can add its name here.")
 ;;; Service implementation
 ;;;
 (define (make-shepherd-service/clef service-config)
-  (with-service-gexp-modules '((guix-crypto clef-utils)
-                               (guix-crypto swarm-utils))
+  (with-service-gexp-modules '((guix-crypto swarm-utils))
     (match-record service-config <swarm-service-configuration>
         (swarm geth clef-user swarm-group)
       (match-record swarm <swarm>
@@ -268,8 +267,7 @@ a local Gnosis chain node instance, then you can add its name here.")
          (provision (list (clef-service-name swarm-name)))
          (requirement '(networking file-systems))
          (modules (append
-                   '((guix-crypto clef-utils)
-                     (guix-crypto swarm-utils))
+                   '((guix-crypto swarm-utils))
                    +default-service-modules+))
          (start
           (let* ((data-dir     (clef-data-directory     swarm-name))
@@ -362,7 +360,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                 #false))))))))
 
 (define (make-shepherd-service/bee bee-index service-config singular?)
-  (with-service-gexp-modules '()
+  (with-service-gexp-modules '((guix-crypto swarm-utils))
    (match-record service-config <swarm-service-configuration>
        (swarm bee-configuration bee bee-user swarm-group node-count
               additional-service-requirements)
@@ -386,11 +384,15 @@ a local Gnosis chain node instance, then you can add its name here.")
           (documentation (simple-format #f "Swarm bee node ~S in swarm ~S."
                                         bee-index swarm-name))
           (provision (list (bee-service-name swarm-name bee-index)))
-          (requirement (append `(networking file-systems
-                                            ,(clef-service-name swarm-name))
+          (requirement (append '(networking file-systems)
+                               (if clef-signer-enable
+                                   (list (clef-service-name swarm-name))
+                                   '())
                                additional-service-requirements))
           (actions (list display-address-action))
-          (modules +default-service-modules+)
+          (modules (append
+                    '((guix-crypto swarm-utils))
+                    +default-service-modules+))
           (start
            (let* ((data-dir     (bee-data-directory swarm-name bee-index))
                   (libp2p-key   (string-append data-dir "/keys/libp2p.key"))
@@ -430,7 +432,8 @@ a local Gnosis chain node instance, then you can add its name here.")
                         (ensure-directories/rec bee-user-id bee-group-id #o2770 #$data-dir)
                         (ensure-password-file #$(bee-password-file swarm-name) bee-user-id bee-group-id)
 
-                        (ensure-clef-account #$swarm-name #$bee-index)
+                        (when #$clef-signer-enable
+                          (ensure-clef-account #$swarm-name #$bee-index))
 
                         ;; When first started, call `bee init` for this bee
                         ;; instance.

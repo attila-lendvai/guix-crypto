@@ -17,7 +17,6 @@
 
  #:use-module (guix-crypto utils)
  #:use-module (guix-crypto swarm-utils)
- #:use-module (guix-crypto clef-utils)
  #:use-module (guix-crypto package-utils)
  #:use-module (guix-crypto script-utils)
  #:use-module (guix-crypto packages ethereum)
