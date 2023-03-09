@@ -109,8 +109,14 @@
   ;; append, and it overwrites.
   (call-with-error-handling
    (lambda ()
-     (call-with-port (open-file (service-log-filename) "a")
+     ;; We cannot influence the locale of the shepherd process, therefore we
+     ;; must explicitly set the file encoding here.
+     ;; TODO FIXME this opens/closes the file at each log line
+     (call-with-port (open-file (service-log-filename) "a"
+                                #:encoding "UTF-8")
        (lambda (port)
+         ;; (unless (equal? "UTF-8" (port-encoding port))
+         ;;   (format port "WARNING: log file encoding is ~S~%" (port-encoding port)))
          (display (date->string (current-date) "~5") port)
          (display #\space port)
          (apply format port format-string args)
