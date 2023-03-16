@@ -152,7 +152,7 @@ programming language.")
 (define-public nethermind-binary
   (let* ((version "1.17.1")
          (commit "120f4c8d") ; first 8 digits of the tagged commit's hash
-         ;; Note: use bin/geth-update-helper.scm to update the hashes
+         ;; Note: use bin/release-update-helper.scm to update the hashes
          (hashes (read-hashes-file "nethermind-binary")))
     (package
       (name "nethermind-binary")
@@ -253,7 +253,7 @@ work on Guix.")
 
 (define-public lighthouse-binary
   (let* ((version "3.5.1")
-         ;; Note: use bin/geth-update-helper.scm to update the hashes
+         ;; Note: use bin/release-update-helper.scm to update the hashes
          (hashes (read-hashes-file "lighthouse-binary")))
     (package
       (name "lighthouse-binary")

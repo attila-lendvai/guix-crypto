@@ -39,7 +39,7 @@
   #:use-module (srfi srfi-71))
 
 (define-public zcash-binary
-  ;; Note: use bin/geth-update-helper.scm to update the hashes
+  ;; Note: use bin/release-update-helper.scm to update the hashes
   (let ((hashes (read-hashes-file "zcash-binary")))
     (package
       (name "zcash-binary")
