@@ -11,6 +11,9 @@
 ;;;   ./bin/release-update-helper.scm geth-binary 1.10.17 25c9b49f
 ;;;   ./bin/release-update-helper.scm nethermind-binary 1.12.8 2d3dd48
 
+;; TODO save the commit hash into the hashes file, so that we don't need to
+;; update it in the package definition. needs extending the hash file format.
+
 (use-modules
  (guix build utils)
  (guix-crypto utils)
@@ -121,17 +124,17 @@
        (delete-file file))
       (exit EXIT_FAILURE))))
 
-(define* (download-and-verify-arch arch url-factory-args)
+(define* (download-and-verify-arch arch uri-factory-args)
   (format #t "~A\t\t" arch)
   (let* ((fingerprints (second (*package-db-entry*)))
          (uri-factory  (first  (*package-db-entry*)))
          (data-file    (tmp-file arch)))
-    (download-uri-to-file (apply uri-factory arch url-factory-args)
+    (download-uri-to-file (apply uri-factory arch uri-factory-args)
                           data-file)
     (if (zero? (length fingerprints))
         (format #t "no fingerprints specified, skipping signature verification~%")
         (let ((sig-file (tmp-file arch ".sig")))
-          (download-uri-to-file (apply uri-factory arch (append url-factory-args
+          (download-uri-to-file (apply uri-factory arch (append uri-factory-args
                                                                 '(#:suffix ".asc")))
                                 sig-file)
           (verify-gpg-signature
@@ -153,8 +156,8 @@
 (define (main cmd)
   (if (> (length cmd) 2)
       (let* ((pkg-name (second cmd))
-             (url-factory-args (cddr cmd))
-             (version (first url-factory-args)))
+             (uri-factory-args (cddr cmd))
+             (version (first uri-factory-args)))
         ;; alternatively: (mkdtemp "/tmp/update-helper.XXXXXX")
         (parameterize ((*tmp-directory* (string-append "/tmp/" pkg-name "-" version))
                        (*package-db-entry* (package-db-entry (second cmd))))
@@ -164,8 +167,8 @@
             (lambda ()
               (let* ((guix-archs (fourth (*package-db-entry*)))
                      (upstream-archs (map (third (*package-db-entry*)) guix-archs)))
-                (format #t "~%Fetching files and verifying signatures; version ~A~%~%" url-factory-args)
-                (map (cut download-and-verify-arch <> url-factory-args) upstream-archs)
+                (format #t "~%Fetching files and verifying signatures; version ~A~%~%" uri-factory-args)
+                (map (cut download-and-verify-arch <> uri-factory-args) upstream-archs)
                 (format #t "Hashing the files~%")
                 (let ((db '()))
                   (for-each
