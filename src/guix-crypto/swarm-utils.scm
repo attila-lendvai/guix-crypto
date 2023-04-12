@@ -150,8 +150,7 @@
         (assert-clef-is-alive)
         ;; (log.debug "entering read-line")
         (let ((line (read-line input)))
-          ;; TODO don't log the content itself
-          (log.debug "Got line ~S" line)
+          (log.dribble "Got line ~S" line)
           (if (eof-object? line)
               (begin
                 (log.debug "Got EOF from Clef, fiber is exiting...")
@@ -179,7 +178,7 @@
         (assert-clef-is-alive)
         (let ((response (apply format #false fmt args)))
           ;; TODO don't log the content itself
-          (log.debug "CLEF-STDIO-LOOP Sending response to Clef ~A" response)
+          (log.dribble "CLEF-STDIO-LOOP Sending response to Clef ~A" response)
           (put-string output response))
         (newline output)
         (force-output output))

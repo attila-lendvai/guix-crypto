@@ -131,9 +131,12 @@
           (display-backtrace (make-stack #t) port))))))
   (values))
 
-;; TODO handle the categories...
+;; TODO handle the categories properly...
 (define-public (log.dribble . args)
-  (apply log.debug args))
+  ;; NOTE dribble logs may contain sensitive information. only enable it while
+  ;; debugging.
+  ;; (apply log.debug args)
+  (values))
 
 (define-public (log.warn . args)
   (apply log.debug args))
