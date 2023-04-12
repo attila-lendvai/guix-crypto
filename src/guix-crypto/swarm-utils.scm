@@ -221,7 +221,7 @@
          (catch 'quit
            (lambda _
              (log.debug "stdio loop fiber speaking")
-             (let* ((matchers
+             (let* ((handlers
                      (list
                       ;; new account password
                       (cons (lambda (method params id request)
@@ -274,16 +274,26 @@
                (let loop ()
                  (let* ((method params id request (read-request)))
                    (log.debug "CLEF-STDIO-LOOP Clef said '~A'" request)
-                   ;; TODO ensure this is a tail call
-                   (for-each
-                    (match-lambda
-                      ((pred . handler)
-                       ;;(log.dribble "CLEF-STDIO-LOOP trying pred '~A'" pred)
-                       (when (pred method params id request)
-                         ;;(log.dribble "CLEF-STDIO-LOOP calling handler '~A'" handler)
-                         (handler method params id request)
-                         (loop))))
-                    matchers)))))
+
+                   ;; KLUDGE FOR-EACH is not (guaranteed) to be a tail call,
+                   ;; so we need to roll our own. this is kinda ugly. it
+                   ;; should really be just a for-each and a break, but THROW
+                   ;; flies out of the fiber.
+                   (define (try-handlers handlers)
+                     (unless (null? handlers)
+                       (let* ((entry   (first handlers))
+                              (pred    (car entry))
+                              (handler (cdr entry)))
+                         ;;(log.dribble "CLEF-STDIO-LOOP trying pred '~A'" pred)
+                         (if (pred method params id request)
+                             (begin
+                               ;;(log.dribble "CLEF-STDIO-LOOP calling handler '~A'" handler)
+                               (handler method params id request))
+                             (try-handlers (cdr handlers))))))
+
+                   (try-handlers handlers)
+
+                   (loop)))))
            (const #false)))))
     (const #false)))
 
