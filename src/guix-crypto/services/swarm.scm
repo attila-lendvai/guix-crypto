@@ -421,9 +421,10 @@ a local Gnosis chain node instance, then you can add its name here.")
                                      #$bee-user #$swarm-group
                                      #:blockchain-rpc-endpoint #$blockchain-rpc-endpoint
                                      #:resolver-options #$resolver-options
-                                     #:eth-address (when #$clef-signer-enable
-                                                     (read-file-to-string
-                                                      #$(bee-account-file swarm-name bee-index)))
+                                     #:eth-address (and #$clef-signer-enable
+                                                        ;; TODO get it from Clef instead
+                                                        (read-file-to-string
+                                                         #$(bee-account-file swarm-name bee-index)))
                                      #:resource-limits
                                      `((nofile ,#$(+ db-open-files-limit 4096)
                                                ,#$(+ db-open-files-limit 4096)))))
