@@ -70,7 +70,7 @@
         #:phases
         #~(modify-phases %standard-phases
             (replace 'unpack
-              (lambda* (#:key source native-inputs #:allow-other-keys)
+              (lambda* (#:key source #:allow-other-keys)
                 (invoke "tar" "--strip-components=1" "-xzvf" source)))
             (replace 'install
               ;; #:install-plan doesn't seem to be capable of producing

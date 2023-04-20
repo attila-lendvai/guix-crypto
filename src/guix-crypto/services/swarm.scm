@@ -429,7 +429,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                                      `((nofile ,#$(+ db-open-files-limit 4096)
                                                ,#$(+ db-open-files-limit 4096)))))
 
-                        (log.debug "Bee service is starting")
+                        (log.debug "Bee service is starting (~A Clef)" (if #$clef-signer-enable "with" "without"))
 
                         (ensure-directories/rec bee-user-id bee-group-id #o2770 #$data-dir)
                         (ensure-password-file #$(bee-password-file swarm-name) bee-user-id bee-group-id)
@@ -442,7 +442,8 @@ a local Gnosis chain node instance, then you can add its name here.")
                         (unless (file-exists? #$libp2p-key)
                           (log.debug "Invoking `bee init` for bee-index ~S in swarm ~S" #$bee-index #$swarm-name)
                           (wait-for-pid
-                           (spawn-bee* "init")))
+                           (spawn-bee* "init"))
+                          (log.dribble "`bee init` finished for bee-index ~S in swarm ~S" #$bee-index #$swarm-name))
 
                         ;; Due to staged compilation, we cannot add the node's
                         ;; eth address to the config bee file, because it only

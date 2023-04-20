@@ -49,6 +49,11 @@
           (G_ "The package '~a' does not support the Guix system '~a'")
           package-name system)))
 
+(define-public (guix-system-name->rust-system-name name)
+  (match name
+    ("x86_64-linux"      "x86_64-unknown-linux")
+    ("aarch64-linux"     "aarch64-unknown-linux")))
+
 (define-public (guix-system-name->go-system-name system)
   (match system
     ("x86_64-linux"      "linux-amd64")
@@ -71,6 +76,9 @@
            "v" version "/" file-name suffix)
           file-name))
 
+;;;
+;;; Geth
+;;;
 (define-public* (geth-release-file-name arch version commit-hash
                                         #:key (suffix ""))
   (string-append "geth-alltools-"
@@ -89,6 +97,9 @@
                            file-name)
             file-name)))
 
+;;;
+;;; Swarm Bee
+;;;
 (define-public* (bee-release-file-name arch)
   (string-append "bee-" arch))
 
@@ -96,6 +107,9 @@
   (github-release-uri "ethersphere" "bee" version
                       (bee-release-file-name arch)))
 
+;;;
+;;; Lighthouse
+;;;
 (define-public* (lighthouse-release-file-name arch version)
   (string-append "lighthouse-v" version "-" arch
                  "-gnu-portable.tar.gz"))
@@ -105,6 +119,10 @@
   (github-release-uri "sigp" "lighthouse" version
                       (lighthouse-release-file-name arch version)
                       #:suffix suffix))
+
+;;;
+;;; Feather wallet
+;;;
 
 ;; https://featherwallet.org/files/releases/linux/feather-2.3.0-linux.zip
 (define-public* (feather-release-file-name version #:key (suffix ""))
@@ -117,20 +135,12 @@
                            file-name)
             file-name)))
 
+;;;
+;;; ZCash
+;;;
 (define-public (guix-system-name->zcash-system-name name)
   (match name
     ("x86_64-linux"      "linux64")))
-
-(define-public (guix-system-name->rust-system-name name)
-  (match name
-    ("x86_64-linux"      "x86_64-unknown-linux")
-    ("aarch64-linux"     "aarch64-unknown-linux")))
-
-(define-public (guix-system-name->nethermind-system-name name)
-  (match name
-    ("x86_64-linux"      "linux-x64")
-    ("aarch64-linux"     "linux-arm64")))
-
 
 (define-public* (zcash-release-file-name arch version
                                          #:key (suffix ""))
@@ -144,6 +154,14 @@
   (let ((file-name (zcash-release-file-name arch version #:suffix suffix)))
     (values (string-append "https://z.cash/downloads/" file-name)
             file-name)))
+
+;;;
+;;; Nethermind
+;;;
+(define-public (guix-system-name->nethermind-system-name name)
+  (match name
+    ("x86_64-linux"      "linux-x64")
+    ("aarch64-linux"     "linux-arm64")))
 
 (define-public* (nethermind-release-file-name arch version commit
                                               #:key (suffix ""))
