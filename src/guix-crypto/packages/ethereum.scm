@@ -252,7 +252,7 @@ work on Guix.")
        '((release-monitoring-url . "https://github.com/NethermindEth/nethermind/releases"))))))
 
 (define-public lighthouse-binary
-  (let* ((version "4.0.1")
+  (let* ((version "4.1.0")
          ;; Note: use bin/release-update-helper.scm to update the hashes
          (hashes (read-hashes-file "lighthouse-binary")))
     (package
