@@ -371,50 +371,53 @@ a local Gnosis chain node instance, then you can add its name here.")
        (match-record bee-configuration <bee-configuration>
            (full-node resolver-options blockchain-rpc-endpoint clef-signer-enable
                       db-open-files-limit)
-           ;; TODO add: cashout, withdraw, balances, settlements
-         (define display-address-action
-           (shepherd-action
-            (name 'display-address)
-            (documentation "Print the Bee node's Ethereum address.")
-            (procedure
-             (swarm-service-action-gexp service-config
-               (if clef-signer-enable
-                   #~(display (ensure-clef-account #$swarm-name #$bee-index))
-                   #~(let* ((filename #$(bee-wallet-file swarm-name bee-index))
-                            (json (call-with-input-file filename
-                                    json->scm))
-                            (address (assoc-ref json "address")))
-                       (display address)))))))
+         ;; TODO add: cashout, withdraw, balances, settlements, backup-node-identity
+         (let* ((data-dir     (bee-data-directory swarm-name bee-index))
+                (libp2p-key   (string-append data-dir "/keys/libp2p.key"))
+                (bee-cfg      (if singular?
+                                  bee-configuration
+                                  (bee-configuration-for-node-index
+                                   swarm bee-configuration bee-index)))
+                (config-file  (plain-file
+                               (simple-format #f "bee-config-~A.yaml" bee-index)
+                               (with-output-to-string
+                                 (lambda ()
+                                   (serialize-configuration
+                                    bee-cfg
+                                    bee-configuration-fields))))))
 
-         (shepherd-service
-          (documentation (simple-format #f "Swarm bee node ~S in swarm ~S."
-                                        bee-index swarm-name))
-          (provision (list (bee-service-name swarm-name bee-index)))
-          (requirement (append '(networking file-systems)
-                               (if clef-signer-enable
-                                   (list (clef-service-name swarm-name))
-                                   '())
-                               shepherd-requirement))
-          (actions (list display-address-action))
-          (modules (append
-                    '((guix-crypto swarm-utils)
-                      (json))
-                    +default-service-modules+))
-          (start
-           (let* ((data-dir     (bee-data-directory swarm-name bee-index))
-                  (libp2p-key   (string-append data-dir "/keys/libp2p.key"))
-                  (bee-cfg (if singular?
-                               bee-configuration
-                               (bee-configuration-for-node-index
-                                swarm bee-configuration bee-index)))
-                  (config-file (plain-file
-                                (simple-format #f "bee-config-~A.yaml" bee-index)
-                                (with-output-to-string
-                                  (lambda ()
-                                    (serialize-configuration
-                                     bee-cfg
-                                     bee-configuration-fields))))))
-             #~(lambda args
+           (define display-address-action
+             (shepherd-action
+              (name 'display-address)
+              (documentation "Print the Bee node's Ethereum address.")
+              (procedure
+               (swarm-service-action-gexp
+                service-config
+                (if clef-signer-enable
+                    #~(display (ensure-clef-account #$swarm-name #$bee-index))
+                    #~(let* ((filename #$(bee-wallet-file swarm-name bee-index))
+                             (json (call-with-input-file filename
+                                     json->scm))
+                             (address (assoc-ref json "address")))
+                        (display address)))))))
+
+           (shepherd-service
+            (documentation (simple-format #f "Swarm bee node ~S in swarm ~S."
+                                          bee-index swarm-name))
+            (provision (list (bee-service-name swarm-name bee-index)))
+            (requirement (append '(networking file-systems)
+                                 (if clef-signer-enable
+                                     (list (clef-service-name swarm-name))
+                                     '())
+                                 shepherd-requirement))
+            (actions (list display-address-action
+                           (shepherd-configuration-action config-file)))
+            (modules (append
+                      '((guix-crypto swarm-utils)
+                        (json))
+                      +default-service-modules+))
+            (start
+             #~(lambda _
                  #$(swarm-service-start-gexp
                     service-config
                     #~(begin
@@ -452,8 +455,8 @@ a local Gnosis chain node instance, then you can add its name here.")
                           ;; eth address to the config bee file, because it only
                           ;; gets generated at service runtime. Hence we're
                           ;; passing it as an env variable.
-                          (spawn-bee* "start")))))))
-          (stop #~(make-kill-destructor))))))))
+                          (spawn-bee* "start"))))))
+            (stop #~(make-kill-destructor)))))))))
 
 (define (make-swarm-shepherd-services service-config)
   (set! service-config (apply-config-defaults service-config))
