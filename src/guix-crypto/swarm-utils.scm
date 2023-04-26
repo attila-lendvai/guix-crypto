@@ -62,8 +62,8 @@
   (string-append (swarm-data-directory swarm-name) "/bee-"
                  (number->string bee-index)))
 
-(define-public (bee-account-file swarm-name bee-index)
-  (string-append (bee-data-directory swarm-name bee-index) "/eth-address"))
+(define-public (bee-wallet-file swarm-name bee-index)
+  (string-append (bee-data-directory swarm-name bee-index) "/keys/swarm.key"))
 
 (define-public (clef-data-directory swarm-name)
   (string-append (swarm-data-directory swarm-name) "/clef"))
@@ -364,13 +364,4 @@
                (address (vector-ref accounts bee-index)))
           (log.debug "Account address for bee-index ~A is ~A" bee-index address)
           (assert (= 42 (string-length address)))
-          (let ((address (substring address 2))
-                (file-name (bee-account-file swarm-name bee-index)))
-            (log.debug "Stripped account address for bee-index ~A is ~A, will be ensured into ~S" bee-index address file-name)
-            (unless (and (file-exists? file-name)
-                         (equal? (read-file-to-string file-name)
-                                 address))
-              (log.debug "Updating ~S to ~A" file-name address)
-              (with-output-to-file file-name
-                (lambda ()
-                  (display address))))))))))
+          (substring address 2))))))
