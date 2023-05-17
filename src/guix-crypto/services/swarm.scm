@@ -34,8 +34,10 @@
   #:use-module (guix records)
   #:use-module (guix packages)
   #:use-module (guix git-download)
+  #:use-module (guix build utils)
   #:use-module (gnu packages)
   #:use-module (gnu packages base)
+  #:use-module (gnu packages compression)
   #:use-module (gnu packages bash)
   #:use-module ((gnu packages admin) #:select (shadow))
   #:use-module (gnu services)
@@ -361,7 +363,8 @@ a local Gnosis chain node instance, then you can add its name here.")
                 #false))))))))
 
 (define (make-shepherd-service/bee bee-index service-config singular?)
-  (with-service-gexp-modules '((guix-crypto swarm-utils)
+  (with-service-gexp-modules '((guix build utils)
+                               (guix-crypto swarm-utils)
                                (json))
    (match-record service-config <swarm-service-configuration>
        (swarm bee-configuration bee bee-user swarm-group node-count
@@ -371,7 +374,7 @@ a local Gnosis chain node instance, then you can add its name here.")
        (match-record bee-configuration <bee-configuration>
            (full-node resolver-options blockchain-rpc-endpoint clef-signer-enable
                       db-open-files-limit)
-         ;; TODO add: cashout, withdraw, balances, settlements, backup-node-identity
+         ;; TODO add: cashout, withdraw, balances, settlements, backup-identity
          (let* ((data-dir     (bee-data-directory swarm-name bee-index))
                 (libp2p-key   (string-append data-dir "/keys/libp2p.key"))
                 (bee-cfg      (if singular?
@@ -386,20 +389,77 @@ a local Gnosis chain node instance, then you can add its name here.")
                                     bee-cfg
                                     bee-configuration-fields))))))
 
-           (define display-address-action
+           (define* (shepherd-action/bee name doc gexp)
              (shepherd-action
-              (name 'display-address)
-              (documentation "Print the Bee node's Ethereum address.")
+              (name name)
+              (documentation doc)
+              (procedure
+               (swarm-service-action-gexp service-config gexp))))
+
+           (define address-action
+             (shepherd-action/bee
+              'address
+              "Print the Bee node's Ethereum address."
+              (if clef-signer-enable
+                  #~(display (ensure-clef-account #$swarm-name #$bee-index))
+                  ;; TODO maybe we should use an RPC call instead? but that
+                  ;; would only work when the node is running.
+                  #~(let* ((filename #$(bee-wallet-file swarm-name bee-index))
+                           (json (call-with-input-file filename
+                                   json->scm))
+                           (address (assoc-ref json "address")))
+                      (display address)))))
+
+           (define log-file-action
+             (shepherd-action/bee
+              'log-file
+              "Print the Bee node's log file path."
+              #~(display #$(bee-log-filename (default-log-directory swarm-name)
+                                             bee-index))))
+
+           (define backup-identity-action
+             (shepherd-action
+              (name 'backup-identity)
+              (documentation "Backs up the Bee node's identity (the statestore,
+its wallet when running without clef, and the libp2p and pss keys) into the
+directory specified as the first command line argument.")
               (procedure
                (swarm-service-action-gexp
                 service-config
-                (if clef-signer-enable
-                    #~(display (ensure-clef-account #$swarm-name #$bee-index))
-                    #~(let* ((filename #$(bee-wallet-file swarm-name bee-index))
-                             (json (call-with-input-file filename
-                                     json->scm))
-                             (address (assoc-ref json "address")))
-                        (display address)))))))
+                #~(cond
+                   ((= 1 (length -args-))
+                    (cond
+                     ((not (directory-exists? (first -args-)))
+                      (format #t "Destination directory '~A' does not exists~%"
+                              (first -args-)))
+                     (else
+                      (let* ((data-dir (bee-data-directory #$swarm-name #$bee-index))
+                             (dest-dir (canonicalize-path (first -args-)))
+                             (file-name (string-append (date->string (current-date) "~1") "-"
+                                                       (gethostname)
+                                                       "-bee-"
+                                                       #$swarm-name "-"
+                                                       #$(number->string bee-index)))
+                             (dest-path (string-append dest-dir "/" file-name ".tgz"))
+                             ;; Let's record the fact that we depend on gzip.
+                             (compressor #$(file-append gzip "/bin/gzip")))
+                        (format #t "Backing up Bee node identity from '~A' to '~A'~%"
+                                data-dir dest-path)
+                        (let ((cmd (cons* #$(file-append tar "/bin/tar")
+                                          "--gzip" "--verbose" "--create"
+                                          "--file" dest-path
+                                          "--directory" data-dir
+                                          "keys/"
+                                          "statestore/"
+                                          (if #$clef-signer-enable
+                                              (error "TODO backing up the Clef key is not yet implemented")
+                                              '()))))
+                          (log.debug "Will run backup cmd: ~S" cmd)
+                          (apply system* cmd))
+                        (format #t "Node identity files have been backed up into '~A'~%"
+                                dest-path)))))
+                   (else
+                    (format (current-error-port) "Usage: herd backup-identity bee-mainnet-0 destination-directory.~%")))))))
 
            (shepherd-service
             (documentation (simple-format #f "Swarm bee node ~S in swarm ~S."
@@ -410,8 +470,10 @@ a local Gnosis chain node instance, then you can add its name here.")
                                      (list (clef-service-name swarm-name))
                                      '())
                                  shepherd-requirement))
-            (actions (list display-address-action
-                           (shepherd-configuration-action config-file)))
+            (actions (list address-action
+                           log-file-action
+                           (shepherd-configuration-action config-file)
+                           backup-identity-action))
             (modules (append
                       '((guix-crypto swarm-utils)
                         (json))
@@ -421,7 +483,6 @@ a local Gnosis chain node instance, then you can add its name here.")
                  #$(swarm-service-start-gexp
                     service-config
                     #~(begin
-
                         (log.debug "Bee service is starting (~A Clef)" (if #$clef-signer-enable "with" "without"))
 
                         (ensure-directories/rec bee-user-id bee-group-id #o2770 #$data-dir)
@@ -596,15 +657,20 @@ number of times, in any random moment."
       (swarm bee-user swarm-group)
     (match-record swarm <swarm>
       ((name swarm-name))
-      #~(lambda (-pid- . -args-)
-          (let* ((-path-          #$(file-append coreutils "/bin"))
-                 (-log-dir-       #$(default-log-directory swarm-name)))
-            (setenv "PATH" -path-)
-            (with-log-directory -log-dir-
-              ;; Log files are not visible to everyone.
-              (ensure-directories/rec #$bee-user #$swarm-group #o2770
-                                      -log-dir-)
-              #$body-gexp))))))
+      #~(begin
+          ;; TODO this srfi-19 should be somewhere more locally scoped,
+          ;; but i don't know how to make that work.
+          (use-modules (srfi srfi-19))
+
+          (lambda (-pid- . -args-)
+            (let* ((-path-          #$(file-append coreutils "/bin"))
+                   (-log-dir-       #$(default-log-directory swarm-name)))
+              (setenv "PATH" -path-)
+              (with-log-directory -log-dir-
+                                  ;; Log files are not visible to everyone.
+                                  (ensure-directories/rec #$bee-user #$swarm-group #o2770
+                                                          -log-dir-)
+                                  #$body-gexp)))))))
 
 (define (make-swarm-user-accounts service-config)
   (set! service-config (apply-config-defaults service-config))
