@@ -146,9 +146,10 @@ for @code{mainnet} and 2100 for @code{testnet}, otherwise it must be specified."
 ;; The field names here deliberately mirror the bee config entry names letter
 ;; by letter.
 (define-configuration bee-configuration
-  (clef-signer-enable    (boolean #true)
+  (clef-signer-enable    (boolean #false)
                          "Whether to connect to a Clef instance, or the Bee node itself should be doing \
-its own Ethereum key management.")
+its own Ethereum key management. Disabled by default because the Swarm team
+does not recommend using this setup anymore.")
   (debug-api-enable      (boolean #false) "")
   (db-open-files-limit   (non-negative-integer +db-open-files-limit/default+) "")
   (verbosity             (verbosity-value 'info)
