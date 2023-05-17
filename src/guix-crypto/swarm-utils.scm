@@ -24,9 +24,7 @@
 
 (define-module (guix-crypto swarm-utils)
   #:use-module (guix-crypto utils)
-
   #:use-module (guix build utils)
-
   #:use-module ((scheme base) #:select (call-with-port))
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-19)
@@ -134,6 +132,13 @@
 
 (define-public* (spawn-clef-stdio-fiber pid input output clef-password)
   (log.debug "CLEF-STDIO-LOOP is speaking")
+
+  ;; TODO use this? what about the fiber capturing this closure?
+  ;; (define (cleanup . _)
+  ;;   (close-port input)
+  ;;   (close-port output)
+  ;;   #false)
+
   (catch 'quit
     (lambda _
       (define (quit)
@@ -353,13 +358,14 @@
 
         ;; we only create one new account at a time, because other starting up
         ;; bee nodes may be running this same loop in parallel.
+        ;; the worst race condition here is that we generate one more
+        ;; clef account than necessary, which is not a big deal.
         (while (let* ((accounts (request "account_list"))
                       (num-accounts (vector-length accounts)))
                  (<= num-accounts bee-index))
           (request "account_new"))
 
-        ;; fetch the account address and save it into the eth-address file if
-        ;; needed.
+        ;; fetch the account address and return it.
         (let* ((accounts (request "account_list"))
                (address (vector-ref accounts bee-index)))
           (log.debug "Account address for bee-index ~A is ~A" bee-index address)

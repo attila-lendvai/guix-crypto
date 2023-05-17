@@ -334,7 +334,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                                 ;;         (spawn-clef-stdio-fiber pid input output
                                 ;;                          clef-password)))))
 
-                                ;; TODO this open/close structure not safe for interim errors and whatnot
+                                ;; TODO this open/close structure is not safe for interim errors and whatnot
                                 ;; TODO who will close these files and when?
                                 (let ((input  (open-file clef-stdout "r"))
                                       (output (open-file clef-stdin  "w")))
@@ -555,6 +555,7 @@ number of times, in any random moment."
       (match-record swarm <swarm>
           ((name swarm-name) network-id)
         ;; TODO use the -foo- naming convention for the implicit bindings below?
+        ;; TODO simplify this, and maybe split into two for the actions
         #~(let* ((swarm-name    #$swarm-name)
                  (path          #$(file-append coreutils "/bin"))
                  (bash          #$(file-append bash-minimal "/bin/bash"))
@@ -580,7 +581,7 @@ number of times, in any random moment."
                 (close-port (open-file path "a"))
                 (chmod path #o664))
 
-              (log.dribble "A SWARM-SERVICE-START-GEXP is running for swarm ~S" swarm-name)
+              (log.dribble "A SWARM-SERVICE-START-GEXP is running for swarm ~S on Guile version ~S" swarm-name (version))
 
               (let ((dir #$(swarm-data-directory swarm-name)))
                 ;; The data dir is visible to everyone.
