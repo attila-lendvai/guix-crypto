@@ -159,7 +159,7 @@ symbols: @code{'silent}, @code{'error}, @code{'warn}, @code{'info}, \
   (full-node             (boolean #true) "")
   (p2p-addr              (string ":1634") "")
   (api-addr              (string ":1633") "")
-  (debug-api-addr        (string ":1635") "")
+  (debug-api-addr        (string "localhost:1635") "")
   (resolver-options      (string "")
                          "A blockchain node endpoint to connect to for resolving ENS names.
 Normally it should be a node connected to the Ethereum mainnet.")
@@ -251,7 +251,7 @@ a local Gnosis chain node instance, then you can add its name here.")
      (inherit template)
      (p2p-addr       (as-addr-string p2p-port-base))
      (api-addr       (as-addr-string api-port-base))
-     (debug-api-addr (as-addr-string debug-api-port-base))
+     (debug-api-addr (string-append "localhost" (as-addr-string debug-api-port-base)))
      (data-dir       (bee-data-directory swarm-name node-index)))))
 
 ;;;
