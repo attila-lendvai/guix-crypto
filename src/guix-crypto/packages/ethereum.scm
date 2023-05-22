@@ -42,10 +42,8 @@
   #:use-module (srfi srfi-71))
 
 (define-public geth-binary
-  (let* ((version "1.11.6")
-         (commit-hash "ea9e62ca") ; first 8 digits of the tagged commit's hash
-         ;; Note: use bin/release-update-helper.scm to update the hashes
-         (hashes (read-hashes-file "geth-binary")))
+  (let ((commit-hash "ea9e62ca")  ; first 8 digits of the tagged commit's hash
+        (version hashes (read-hashes-file "geth-binary")))
     (package
       (name "geth-binary")
       (version version)
@@ -104,10 +102,8 @@ censorship, fraud or third party interference.")
        '((release-monitoring-url . "https://github.com/ethereum/go-ethereum/releases"))))))
 
 (define-public nethermind-binary
-  (let* ((version "1.18.0")
-         (commit "97e80dda") ; first 8 digits of the tagged commit's hash
-         ;; Note: use bin/release-update-helper.scm to update the hashes
-         (hashes (read-hashes-file "nethermind-binary")))
+  (let ((commit-hash "97e80dda")       ; first 8 digits of the tagged commit's hash
+        (version hashes (read-hashes-file "nethermind-binary")))
     (package
       (name "nethermind-binary")
       (version version)
@@ -117,7 +113,7 @@ censorship, fraud or third party interference.")
                     ;; Strictly speaking, this is wrong, because it's
                     ;; not written in golang, but it matches.
                     (guix-system-name->nethermind-system-name (%current-system))
-                    version commit)))
+                    version commit-hash)))
          (origin
            (method url-fetch)
            (uri uri)
@@ -206,9 +202,7 @@ work on Guix.")
        '((release-monitoring-url . "https://github.com/NethermindEth/nethermind/releases"))))))
 
 (define-public lighthouse-binary
-  (let* ((version "4.1.0")
-         ;; Note: use bin/release-update-helper.scm to update the hashes
-         (hashes (read-hashes-file "lighthouse-binary")))
+  (let ((version hashes (read-hashes-file "lighthouse-binary")))
     (package
       (name "lighthouse-binary")
       (version version)

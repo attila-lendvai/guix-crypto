@@ -30,7 +30,9 @@
                        (string-append (dirname (module-filename module))
                                       "/" filename))
           (error "%read-module-relative-file failed for" filename))
-    read))
+    (lambda _
+      (values (read)     ; version
+              (read))))) ; hashes
 
 (define-syntax read-hashes-file
   (lambda (syn)
@@ -38,11 +40,15 @@
       ((_ filename)
        (with-syntax
            ;; Reads the file at compile time and macroexpands to the first form in it.
-           ((form (%read-module-relative-file (current-module)
-                                              (string-append "hashes/"
-                                                             (syntax->datum #'filename)
-                                                             ".hashes"))))
-         #''form)))))
+           ((form (call-with-values
+                      (lambda _
+                        (%read-module-relative-file (current-module)
+                                                    (string-append "hashes/"
+                                                                   (syntax->datum #'filename)
+                                                                   ".hashes")))
+                    (lambda (version hashes)
+                      #`(values '#,version '#,hashes)))))
+         #'form)))))
 
 (define-public (unsupported-arch package-name system)
   (raise (formatted-message

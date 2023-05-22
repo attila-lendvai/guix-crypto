@@ -40,10 +40,10 @@
 
 (define-public zcash-binary
   ;; Note: use bin/release-update-helper.scm to update the hashes
-  (let ((hashes (read-hashes-file "zcash-binary")))
+  (let ((version hashes (read-hashes-file "zcash-binary")))
     (package
       (name "zcash-binary")
-      (version "4.7.0")
+      (version version)
       (source
        (let* ((uri file-name
                    (zcash-release-uri (guix-system-name->zcash-system-name (%current-system))

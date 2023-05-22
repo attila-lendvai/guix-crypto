@@ -43,9 +43,7 @@
   #:use-module (srfi srfi-71))
 
 (define-public feather-binary
-  (let* ((version "2.3.0")
-         ;; Note: use bin/release-update-helper.scm to update the hashes
-         (hashes (read-hashes-file "feather-binary")))
+  (let ((version hashes (read-hashes-file "feather-binary")))
     (package
       (name "feather-binary")
       (version version)

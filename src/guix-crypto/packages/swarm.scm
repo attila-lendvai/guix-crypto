@@ -32,12 +32,11 @@
   #:use-module (gnu packages gnupg)
   #:use-module (nonguix build-system binary)
   #:use-module (ice-9 match)
-  #:use-module (srfi srfi-1))
+  #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-71))
 
 (define-public bee-binary
-  (let ((version "1.16.0")
-        ;; Note: use bin/release-update-helper.scm to update the hashes
-        (hashes (read-hashes-file "bee-binary")))
+  (let ((version hashes (read-hashes-file "bee-binary")))
     (package
       (name "bee-binary")
       (version version)
