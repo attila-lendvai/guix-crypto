@@ -103,52 +103,6 @@ censorship, fraud or third party interference.")
       (properties
        '((release-monitoring-url . "https://github.com/ethereum/go-ethereum/releases"))))))
 
-(define-public openethereum-binary
-  (let ((version "3.3.5"))
-    (package
-      (name "openethereum-binary")
-      (version version)
-      (source
-       (origin
-         (method url-fetch)
-         (uri (github-release-uri "openethereum" "openethereum" version
-                                  (string-append "openethereum-linux-v"
-                                                 version ".zip")))
-         (sha256
-          (match (%current-system)
-            ("x86_64-linux"
-             (base32
-              "0sncd0r5pg0gayapfb6irpqh252ma7z36cnd9ahzg5nl6a5c8wmd"))
-            (_ (unsupported-arch name (%current-system)))))))
-      (build-system binary-build-system)
-      (arguments
-       (list
-        #:install-plan ''(("openethereum" "bin/"))
-        #:strip-binaries? #false          ; The less we modify, the better.
-        #:patchelf-plan ''(("openethereum" ("gcc" "glibc")))
-        #:phases
-        #~(modify-phases %standard-phases
-            (add-after 'patchelf 'check
-              (lambda* (#:key (tests? #t) #:allow-other-keys)
-                (when tests?
-                  ;; At the time of this writing binary-build-system does not
-                  ;; support cross builds. When it will, it will hopefully
-                  ;; declare #:tests #f and this will keep working in cross
-                  ;; builds.
-                  (invoke "./openethereum" "--version")))))))
-      (native-inputs (list unzip patchelf))
-      (inputs (list (list gcc "lib") glibc))
-      (supported-systems '("x86_64-linux"))
-      (home-page "https://openethereum.org/")
-      (synopsis "Fast and feature-rich Ethereum client")
-      (description
-       "OpenEthereum’s goal is to be the fastest, lightest, and most secure
-Ethereum client.  We are developing OpenEthereum using the cutting-edge Rust
-programming language.")
-      (license license:gpl3+)
-      (properties
-       '((release-monitoring-url . "https://github.com/openethereum/openethereum/releases"))))))
-
 (define-public nethermind-binary
   (let* ((version "1.18.0")
          (commit "97e80dda") ; first 8 digits of the tagged commit's hash
