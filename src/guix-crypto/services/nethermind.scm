@@ -98,42 +98,95 @@ optional in this case), or a full file path.")
    "Directory where the state is stored.")
   (log                   maybe-string
    "Possible values: OFF|TRACE|DEBUG|INFO|WARN|ERROR")
-  (JsonRpc.Enabled       (maybe-boolean #false)
+  (JsonRpc.Enabled       maybe-boolean
    "")
-  (JsonRpc.Host          (maybe-string "127.0.0.1")
+  (JsonRpc.Host          maybe-string
    "")
-  (JsonRpc.Port          (maybe-non-negative-integer 8545)
+  (JsonRpc.Port          maybe-non-negative-integer
    "")
-  (JsonRpc.EngineHost    (maybe-string "127.0.0.1")
+  (JsonRpc.EngineHost    maybe-string
    "")
   (JsonRpc.EnginePort    maybe-non-negative-integer
    "")
-  (JsonRpc.UnsecureDevNoRpcAuthentication (maybe-boolean #false)
+  (JsonRpc.UnsecureDevNoRpcAuthentication maybe-boolean
    "")
-  (JsonRpc.WebSocketsPort (maybe-non-negative-integer 8545)
+  (JsonRpc.WebSocketsPort maybe-non-negative-integer
    "")
   (JsonRpc.JwtSecretFile maybe-string
    "")
 
-  (HealthChecks.Enabled   (maybe-boolean #false)
+  (HealthChecks.Enabled  maybe-boolean
    "")
-  (HealthChecks.UIEnabled (maybe-boolean #false)
+  (HealthChecks.UIEnabled maybe-boolean
    "")
 
+  ;; network
+  (Network.Bootnodes     maybe-string
+   "")
+  (Network.EnableUPnP    maybe-boolean
+   "")
+  (Network.OnlyStaticPeers maybe-boolean
+   "")
+  (Network.MaxActivePeers maybe-non-negative-integer
+   "")
+  (Network.P2PPort       maybe-non-negative-integer
+   "")
+  (Network.StaticPeers   maybe-string
+   "")
+
+  ;; pruning
+  (Pruning.CacheMb       maybe-non-negative-integer
+   "")
+  (Pruning.Enabled       maybe-boolean
+   "")
+  (Pruning.FullPruningCompletionBehavior maybe-string ; TODO add more specific type?
+   "")
+  (Pruning.FullPruningMaxDegreeOfParallelism maybe-non-negative-integer
+   "")
+  (Pruning.FullPruningMemoryBudgetMb maybe-non-negative-integer
+   "")
+  (Pruning.FullPruningMinimumDelayHours maybe-non-negative-integer
+   "")
+  (Pruning.FullPruningThresholdMb maybe-non-negative-integer
+   "")
+  (Pruning.FullPruningTrigger maybe-string ; TODO add more specific type?
+   "")
+  (Pruning.Mode          maybe-string ; TODO add more specific type?
+   "Possible values: 'None', 'Memory', 'Full', 'Hybrid'.")
+  (Pruning.PersistenceInterval maybe-non-negative-integer
+   "")
+
+  ;; sync
   (Sync.DownloadBodiesInFastSync maybe-boolean
    "")
   (Sync.DownloadHeadersInFastSync maybe-boolean
    "")
   (Sync.DownloadReceiptsInFastSync maybe-boolean
    "")
-  (Sync.FastSync         (maybe-boolean #false)
+  (Sync.FastBlocks       maybe-boolean
+   "")
+  (Sync.FastSync         maybe-boolean
    "")
   (Sync.FastSyncCatchUpHeightDelta maybe-non-negative-integer
+   "")
+  (Sync.NetworkingEnabled maybe-boolean
    "")
   (Sync.PivotHash        maybe-string ; TODO add more specific type?
    "")
   (Sync.PivotNumber      maybe-non-negative-integer
    "")
+  (Sync.PivotTotalDifficulty maybe-string ; TODO what is the type here?
+   "")
+  (Sync.SnapSync         maybe-boolean
+   "")
+  (Sync.SnapSyncAccountRangePartitionCount maybe-non-negative-integer
+   "")
+  (Sync.StrictMode       maybe-boolean
+   "")
+  (Sync.SynchronizationEnabled maybe-boolean
+   "")
+  ;; (Sync.TuneDbMode       maybe-boolean
+  ;;  "")
   (Sync.UseGethLimitsInFastBlocks maybe-boolean
    "")
   (Sync.WitnessProtocolEnabled maybe-boolean
