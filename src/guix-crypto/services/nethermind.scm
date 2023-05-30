@@ -31,9 +31,10 @@
   #:use-module (guix packages)
   ;;#:use-module (guix git-download)
   #:use-module (gnu packages)
+  #:use-module ((gnu packages admin) #:select (shadow))
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
-  #:use-module ((gnu packages admin) #:select (shadow))
+  #:use-module (gnu packages tls)
   #:use-module (gnu services)
   #:use-module (gnu services admin)
   #:use-module (gnu services configuration)
@@ -95,6 +96,8 @@ file under /share/nethermind-binary-1.2.3/configs/ (the .cfg extension is
 optional in this case), or a full file path.")
   (datadir               maybe-string
    "Directory where the state is stored.")
+  (log                   maybe-string
+   "Possible values: OFF|TRACE|DEBUG|INFO|WARN|ERROR")
   (JsonRpc.Enabled       (maybe-boolean #false)
    "")
   (JsonRpc.Host          (maybe-string "127.0.0.1")
@@ -188,23 +191,19 @@ the chain).")
                             (maybe-value service-name
                                          (string-append "nm-" chain-name)))))
         (nethermind-service-configuration
-         (inherit config)
+         (inherit cfg)
          (user         (maybe-value user (string-append "nm-" chain-name)))
          (group        (maybe-value group "nethermind"))
          (service-name service-name)
          (nethermind-configuration
           (nethermind-configuration
            (inherit nm-config)
-           (config nm-config-field)
-           (datadir      (ensure-string
-                          (maybe-value datadir
-                                       (string-append "/var/lib/nethermind/"
-                                                      service-name))))
+           (datadir     (ensure-string
+                         (maybe-value datadir
+                                      (string-append "/var/lib/nethermind/"
+                                                     service-name))))
            (JsonRpc.JwtSecretFile (maybe-value JsonRpc.JwtSecretFile
-                                               (default-jwt-secret-filename datadir)))
-           #;(ipc-path     (if (defined-value? ipc-path)
-           ipc-path
-           (string-append datadir "/" service-name ".ipc"))))))))))
+                                               (default-jwt-secret-filename datadir))))))))))
 
 ;;;
 ;;;
@@ -262,11 +261,27 @@ the chain).")
                                              #$datadir)
 
                      (log.dribble "Nethermind data dir is initialized (~S)" #$datadir)
-                     (log.dribble "JsonRpc.JwtSecretFile is ~S" #$JsonRpc.JwtSecretFile)
 
-                     ;; TODO JWT secret should be a 64 digit hexadecimal number
+                     ;; Ensure we have a JWT secret. It should be a 64 digit hexadecimal number.
                      ;; openssl rand -hex 32 | tr -d "\n"
-                     (ensure-password-file #$JsonRpc.JwtSecretFile #$user #$group)
+                     (let* ((password-file #$JsonRpc.JwtSecretFile)
+                            (cmd (string-append
+                                  #$(file-append openssl "/bin/openssl")
+                                  " rand -hex 32 | "
+                                  #$(file-append coreutils "/bin/tr")
+                                  " -d \"\\n\" >\""
+                                  password-file
+                                  "\"")))
+                       (if (file-exists? password-file)
+                           (log.dribble "JWT secret already exists in ~S" password-file)
+                           (begin
+                             (log.debug "Generating JWT secret into ~S" password-file)
+                             (unless (zero? (system cmd))
+                               (error "Failed to generate JWT secret" password-file))
+                             (chmod password-file #o440)
+                             (chown password-file
+                                    (or (ensure-uid #$user)  -1)
+                                    (or (ensure-gid #$group) -1)))))
 
                      (define cmd '#$(cons*
                                      (file-append nethermind "/bin/Nethermind.Runner")
