@@ -365,8 +365,8 @@ the chain).")
                        ;;             (not no-ipc))
                        ;;   (ensure-ipc-file-permissions pid #$ipc-path))
                        pid))))))
-          ;; TODO this should wait, herd restart fails now
-          (stop #~(make-kill-destructor))))))))
+          (stop
+           #~(make-kill-destructor #:grace-period 120))))))))
 
 (define (make-unix-user-accounts cfg)
   (set! cfg (apply-config-defaults cfg))
