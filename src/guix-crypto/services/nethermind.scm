@@ -95,9 +95,55 @@
 file under /share/nethermind-binary-1.2.3/configs/ (the .cfg extension is
 optional in this case), or a full file path.")
   (datadir               maybe-string
-   "Directory where the state is stored.")
+   "Directory where the state is stored. Defaults to '/var/lib/nethermind/[service name]/.")
   (log                   maybe-string
    "Possible values: OFF|TRACE|DEBUG|INFO|WARN|ERROR")
+
+  ;; Init (fully mirrored as of 1.17.3)
+  (Init.AutoDump         maybe-string ; TODO type: (member '(None Receipts Parity Geth All))
+   "")
+  (Init.BaseDbPath       maybe-string ; TODO type: file path
+   "")
+  (Init.ChainSpecPath    maybe-string ; TODO type: file path
+   "")
+  (Init.DiagnosticMode   maybe-string
+   "")
+  (Init.DiscoveryEnabled maybe-boolean
+   "")
+  (Init.EnableUnsecuredDevWallet maybe-boolean
+   "")
+  (Init.GenesisHash      maybe-string
+   "")
+  (Init.HiveChainSpecPath maybe-string ; TODO type: file path
+   "")
+  (Init.IsMining         maybe-boolean
+   "")
+  (Init.KeepDevWalletInMemory maybe-boolean
+   "")
+  (Init.LogDirectory     maybe-string ; TODO type: file path
+   "")
+  (Init.LogFileName      maybe-string
+   "")
+  (Init.LogRules         maybe-string
+   "Overrides for default logs in format LogPath:LogLevel;*")
+  (Init.MemoryHint       maybe-non-negative-integer
+   "")
+  (Init.PeerManagerEnabled maybe-boolean
+   "")
+  (Init.ProcessingEnabled maybe-boolean
+   "")
+  (Init.ReceiptsMigration maybe-boolean
+   "")
+  (Init.RpcDbUrl          maybe-string ; TODO type: url
+   "")
+  (Init.StaticNodesPath   maybe-string ; TODO type: file path
+   "")
+  (Init.StoreReceipts     maybe-boolean
+   "")
+  (Init.WebSocketsEnabled maybe-boolean
+   "")
+
+  ;; JsonRpc
   (JsonRpc.Enabled       maybe-boolean
    "")
   (JsonRpc.Host          maybe-string
@@ -139,7 +185,7 @@ optional in this case), or a full file path.")
    "")
   (Pruning.Enabled       maybe-boolean
    "")
-  (Pruning.FullPruningCompletionBehavior maybe-string ; TODO add more specific type?
+  (Pruning.FullPruningCompletionBehavior maybe-string ; TODO type: (member None ShutdownOnSuccess AlwaysShutdown)
    "")
   (Pruning.FullPruningMaxDegreeOfParallelism maybe-non-negative-integer
    "")
@@ -149,9 +195,9 @@ optional in this case), or a full file path.")
    "")
   (Pruning.FullPruningThresholdMb maybe-non-negative-integer
    "")
-  (Pruning.FullPruningTrigger maybe-string ; TODO add more specific type?
+  (Pruning.FullPruningTrigger maybe-string ; TODO type: (member Manual StateDbSize VolumeFreeSpace)
    "")
-  (Pruning.Mode          maybe-string ; TODO add more specific type?
+  (Pruning.Mode          maybe-string ; TODO type: (member None Memory Full Hybrid)
    "Possible values: 'None', 'Memory', 'Full', 'Hybrid'.")
   (Pruning.PersistenceInterval maybe-non-negative-integer
    "")
@@ -185,8 +231,6 @@ optional in this case), or a full file path.")
    "")
   (Sync.SynchronizationEnabled maybe-boolean
    "")
-  ;; (Sync.TuneDbMode       maybe-boolean
-  ;;  "")
   (Sync.UseGethLimitsInFastBlocks maybe-boolean
    "")
   (Sync.WitnessProtocolEnabled maybe-boolean
@@ -236,9 +280,16 @@ the chain).")
 
 (define (apply-config-defaults cfg)
   (match-record cfg <nethermind-service-configuration>
-    (user group service-name (nethermind-configuration nm-config))
+      (user
+       group
+       service-name
+       (nethermind-configuration nm-config))
     (match-record nm-config <nethermind-configuration>
-      ((config nm-config-field) datadir JsonRpc.JwtSecretFile)
+        ((config nm-config-field)
+         datadir
+         Init.LogDirectory
+         Init.LogFileName
+         JsonRpc.JwtSecretFile)
       (let* ((chain-name (chain-name-from-config nm-config-field))
              (service-name (ensure-string
                             (maybe-value service-name
@@ -255,28 +306,26 @@ the chain).")
                          (maybe-value datadir
                                       (string-append "/var/lib/nethermind/"
                                                      service-name))))
+           (Init.LogDirectory (ensure-string
+                               (maybe-value Init.LogDirectory
+                                            "/var/log/nethermind")))
+           (Init.LogFileName (string-append service-name ".log"))
            (JsonRpc.JwtSecretFile (maybe-value JsonRpc.JwtSecretFile
-                                               (default-jwt-secret-filename datadir))))))))))
+                                               (string-append datadir "/jwt-secret"))))))))))
 
 ;;;
 ;;;
 ;;;
-(define (default-log-directory)
-  "/var/log/nethermind")
-
-(define (nethermind-log-filename log-dir service-name)
-  (simple-format #f "~A/~A.log" log-dir service-name))
-
-(define (default-jwt-secret-filename datadir)
-  (string-append datadir "/jwt-secret"))
-
 (define (make-shepherd-service cfg)
   (set! cfg (apply-config-defaults cfg))
   (with-service-gexp-modules '()
     (match-record cfg <nethermind-service-configuration>
         (user group service-name nethermind nethermind-configuration)
       (match-record nethermind-configuration <nethermind-configuration>
-          ((config nm-config-field) datadir JsonRpc.JwtSecretFile)
+          ((config nm-config-field)
+           datadir
+           Init.LogDirectory
+           JsonRpc.JwtSecretFile)
         (list
          (shepherd-service
           (documentation (simple-format #f "An nethermind node connecting to chain '~A'"
@@ -285,7 +334,7 @@ the chain).")
           (requirement '(networking file-systems))
           (modules +default-service-modules+)
           (start
-           (let ((log-dir (default-log-directory)))
+           (let ((log-dir Init.LogDirectory))
              #~(lambda args
                  (with-log-directory #$log-dir
                    (let* ((path-list (list #$(file-append coreutils "/bin")
@@ -348,7 +397,10 @@ the chain).")
                         cmd
                         #:user #$user
                         #:group #$group
-                        #:log-file #$(nethermind-log-filename log-dir service-name)
+                        ;; TODO FIXME i can't seem to configure nethermind's log,
+                        ;; so let's just keep this as a backup for now.
+                        ;; remember: it's not rotated! so, resolve this soon...
+                        #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
                         #:environment-variables
                         (append
                          (list (string-append "HOME=" #$datadir)
@@ -405,12 +457,14 @@ the chain).")
   (set! service-config (apply-config-defaults service-config))
   (match-record service-config <nethermind-service-configuration>
       (service-name nethermind-configuration)
-    (let ((log-dir (default-log-directory)))
+    (match-record nethermind-configuration <nethermind-configuration>
+        ((Init.LogDirectory log-dir)
+         Init.LogFileName)
       (list
        (log-rotation
         (files (list
                 (string-append log-dir "/service.log")
-                (nethermind-log-filename log-dir service-name)))
+                (string-append log-dir "/" Init.LogFileName)))
         (frequency 'weekly)
         (options '("rotate 8")))))))
 
