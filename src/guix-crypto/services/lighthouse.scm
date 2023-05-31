@@ -57,11 +57,18 @@
 ;;;
 ;;; Configuration
 ;;;
-(define (serialize-field field-name val)
-  (list (string-append "--" (symbol->string field-name))
-        (if (string? val)
-            val
-            (object->string val))))
+(define (serialize-field field-name value)
+  (if (eq? field-name 'extra-arguments)
+      (map (lambda (entry)
+             (first (serialize-field (first entry) (second entry))))
+           value)
+      (list (string-append "--" (if (symbol? field-name)
+                                    (symbol->string field-name)
+                                    field-name)
+                           "="
+                           (if (string? value)
+                               value
+                               (object->string value))))))
 
 (define (serialize-field/boolean field-name val)
   (if val
@@ -69,14 +76,14 @@
       '()))
 
 (define serialize-string  serialize-field)
+(define serialize-list    serialize-field)
 (define serialize-boolean serialize-field/boolean)
 (define serialize-integer serialize-field)
 (define serialize-non-negative-integer serialize-field)
 (define serialize-service-name serialize-field)
-;; (define (serialize-list field-name val)
-;;   (map (cut serialize-field field-name <>) val))
 
 (define-maybe string)
+(define-maybe list)
 (define-maybe boolean)
 (define-maybe integer)
 (define-maybe non-negative-integer)
@@ -91,7 +98,9 @@
   (datadir               maybe-string
    "Directory where the state is stored.")
   (ipc-path              maybe-string
-   "File name of the IPC file."))
+   "File name of the IPC file.")
+  (extra-arguments          maybe-list
+   "A list of (name value) pairs that will be appended as-is to the end of the generated command line."))
 
 (define-configuration/no-serialization lighthouse-service-configuration
   ;;
