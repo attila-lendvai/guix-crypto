@@ -237,12 +237,12 @@
                       ;; Don't follow symlinks.
                       lstat)))
 
-(define (ensure-uid uid)
+(define-public (ensure-uid uid)
   (if (string? uid)
       (passwd:uid (getpwnam uid))
       uid))
 
-(define (ensure-gid gid)
+(define-public (ensure-gid gid)
   (if (string? gid)
       (group:gid (getgrnam gid))
       gid))

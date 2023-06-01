@@ -57,18 +57,36 @@
 ;;;
 ;;; Configuration
 ;;;
+(define (lighthouse-command? val)
+  (member val '(account_manager
+                beacon_node
+                boot_node
+                database_manager
+                validator_client)))
+
 (define (serialize-field field-name value)
-  (if (eq? field-name 'extra-arguments)
-      (map (lambda (entry)
-             (first (serialize-field (first entry) (second entry))))
-           value)
-      (list (string-append "--" (if (symbol? field-name)
-                                    (symbol->string field-name)
-                                    field-name)
-                           "="
-                           (if (string? value)
-                               value
-                               (object->string value))))))
+  (cond
+   ((eq? field-name 'extra-arguments)
+    (map (lambda (entry)
+           (first (serialize-field (first entry) (second entry))))
+         value))
+   ((eq? value #true)
+    ;; This is here for boolean fileds in EXTRA-ARGUMENTS. Otherwise
+    ;; SERIALIZE-FIELD/BOOLEAN covers reified boolean fields.
+    (list (string-append "--" (if (symbol? field-name)
+                                  (symbol->string field-name)
+                                  field-name))))
+   ((eq? value #false)
+    ;; ditto. we do nothing.
+    )
+   (else
+    (list (string-append "--" (if (symbol? field-name)
+                                  (symbol->string field-name)
+                                  field-name)
+                         "="
+                         (if (string? value)
+                             value
+                             (object->string value)))))))
 
 (define (serialize-field/boolean field-name val)
   (if val
@@ -81,6 +99,9 @@
 (define serialize-integer serialize-field)
 (define serialize-non-negative-integer serialize-field)
 (define serialize-service-name serialize-field)
+(define (serialize-lighthouse-command . _)
+  ;; NOP, because it's special-cased in LIGHTHOUSE-CONFIGURATION->CMD-ARGUMENTS
+  '())
 
 (define-maybe string)
 (define-maybe list)
@@ -93,14 +114,30 @@
 (define-configuration lighthouse-configuration
   ;; For simplicity the field names here are the same as the
   ;; Lighthouse config entry names.
-  (network               maybe-string
-   "Which blockchain to connect to.")
+  (command               (lighthouse-command 'beacon_node)
+   "The command for the lighthouse binary.")
   (datadir               maybe-string
-   "Directory where the state is stored.")
-  (ipc-path              maybe-string
-   "File name of the IPC file.")
+                         "Directory where the state is stored.")
+  (debug-level           maybe-string
+   "possible values: info, debug, trace, warn, error, crit")
+  (log-format            maybe-string
+   "")
+  (logfile               maybe-string ; TODO type: path
+   "")
+  (logfile-debug-level   maybe-string
+   "possible values: info, debug, trace, warn, error, crit")
+  (logfile-format        maybe-string
+   "")
+  (logfile-max-size      (maybe-non-negative-integer 8)
+   "The maximum size (in MB) each log file can grow to before rotating. If set to 0, background file logging is disabled.")
+  (logfile-max-number    (maybe-non-negative-integer 10)
+   "Number of rotations to retain.")
+  (logfile-compress      (maybe-boolean #true)
+   "")
+  (network               maybe-string
+   "Which blockchain to connect to. Possible values: mainnet, prater, goerli, gnosis, sepolia")
   (extra-arguments          maybe-list
-   "A list of (name value) pairs that will be appended as-is to the end of the generated command line."))
+                            "A list of (name value) pairs that will be appended as-is to the end of the generated command line."))
 
 (define-configuration/no-serialization lighthouse-service-configuration
   ;;
@@ -124,6 +161,12 @@ the same value you provided as NETWORK.")
    "Unix group for @code{user} and the service processes.")
   (group-id              maybe-non-negative-integer
    "Unix gid for @code{group}.")
+  (shepherd-requirement
+   (list '())
+   "Guix service names that are appended to the REQUIREMENT field of the \
+Shepherd service instance; i.e. here you can specify extra \
+dependencies for the start order of the services. Typically you want to add \
+the name of the execution engine's service here.")
   (lighthouse-configuration lighthouse-configuration
    "Configuration for the Lighthouse binary."))
 
@@ -131,28 +174,30 @@ the same value you provided as NETWORK.")
 ;; various parameters in the TOML file, and we don't have any reified
 ;; representation of that grouping.
 (define (lighthouse-configuration->cmd-arguments config)
-  (fold (lambda (field result)
-          (let ((name (configuration-field-name field))
-                (value ((configuration-field-getter field) config)))
-            (if (maybe-value-set? value)
-                (append ((configuration-field-serializer field) name value)
-                        result)
-                result)))
-        '()
-        lighthouse-configuration-fields))
+  (cons*
+   (symbol->string (lighthouse-configuration-command config))
+   (fold (lambda (field result)
+           (let ((name (configuration-field-name field))
+                 (value ((configuration-field-getter field) config)))
+             (if (maybe-value-set? value)
+                 (append ((configuration-field-serializer field) name value)
+                         result)
+                 result)))
+         '()
+         lighthouse-configuration-fields)))
 
 (define (apply-config-defaults config)
   (match-record config <lighthouse-service-configuration>
-      (user group service-name (lighthouse-configuration oe-config))
-    (match-record oe-config <lighthouse-configuration>
-        (network datadir ipc-path)
+      (user group service-name (lighthouse-configuration lh-config))
+    (match-record lh-config <lighthouse-configuration>
+        (network datadir logfile)
       (let* ((network (ensure-string network))
              (service-name (ensure-string
                             (maybe-value service-name
-                                         (string-append "oe-" network)))))
+                                         (string-append "lh-" network)))))
         (lighthouse-service-configuration
          (inherit config)
-         (user         (maybe-value user (string-append "oe-" network)))
+         (user         (maybe-value user (string-append "lh-" network)))
          (group        (maybe-value group "lighthouse"))
          (service-name service-name)
          (lighthouse-configuration
@@ -161,11 +206,12 @@ the same value you provided as NETWORK.")
                                        (string-append "/var/lib/lighthouse/"
                                                       service-name)))))
             (lighthouse-configuration
-             (inherit oe-config)
+             (inherit lh-config)
              (network      network)
              (datadir      datadir)
-             (ipc-path     (maybe-value ipc-path
-                                        (string-append datadir "/" service-name ".ipc")))))))))))
+             (logfile      (maybe-value logfile
+                                        (string-append (default-log-directory)
+                                                       "/" service-name ".log")))))))))))
 
 ;;;
 ;;;
@@ -173,37 +219,38 @@ the same value you provided as NETWORK.")
 (define (default-log-directory)
   "/var/log/lighthouse")
 
-(define (lighthouse-log-filename log-dir service-name)
-  (simple-format #f "~A/~A.log" log-dir service-name))
-
 (define (make-shepherd-service config)
   (set! config (apply-config-defaults config))
   (with-service-gexp-modules '()
     (match-record config <lighthouse-service-configuration>
-        (user group service-name lighthouse lighthouse-configuration)
+        (user group service-name lighthouse lighthouse-configuration
+              shepherd-requirement)
       (match-record lighthouse-configuration <lighthouse-configuration>
-          (network datadir ipc-path)
+          (network datadir)
         (list
          (shepherd-service
           (documentation (simple-format #f "An lighthouse node connecting to network '~A'"
                                         network))
           (provision (list (string->symbol service-name)))
-          (requirement '(networking file-systems))
+          (requirement (append '(networking file-systems)
+                               shepherd-requirement))
           (modules +default-service-modules+)
           (start
-           (let ((path     (file-append coreutils "/bin"))
+           (let (;; TODO delme (path     (file-append coreutils "/bin"))
                  (log-dir  (default-log-directory)))
              #~(lambda args
-                 (setenv "PATH" #$path)
+                 ;;(setenv "PATH" #$path)
                  (with-log-directory #$log-dir
-                   (ensure-directories 0 "lighthouse" #o2771
-                                       "/var/lib/lighthouse"
+                   (ensure-directories 0 "lighthouse" #o2775
                                        "/var/log/lighthouse")
+
+                   (log.debug "Lighthouse service is starting up")
+
+                   (ensure-directories 0 "lighthouse" #o2771
+                                       "/var/lib/lighthouse")
 
                    (ensure-directories/rec #$user #$group #o2751
                                            #$datadir)
-
-                   (log.debug "Lighthouse service is starting up")
 
                    (define cmd '#$(cons*
                                    (file-append lighthouse "/bin/lighthouse")
@@ -217,11 +264,14 @@ the same value you provided as NETWORK.")
                       cmd
                       #:user #$user
                       #:group #$group
-                      #:log-file #$(lighthouse-log-filename log-dir service-name)
+                      ;; TODO FIXME decide about this. maybe keep it as a low traffic log?
+                      ;; if kept, then set up log rotation
+                      #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
                       #:environment-variables
                       (append
                        (list (string-append "HOME=" #$datadir)
-                             (string-append "PATH=" #$path))
+                             ;;(string-append "PATH=" #$path)
+                             "RUST_BACKTRACE=full")
                        +root-environment+)))
 
                    ;; We need to do this here, because we must not return from
@@ -229,19 +279,16 @@ the same value you provided as NETWORK.")
                    ;; otherwise any (requirement ...) specification on other
                    ;; services is useless.
                    (let ((pid (apply forkexec args)))
-                     (ensure-ipc-file-permissions pid #$ipc-path)
+                     ;;(ensure-ipc-file-permissions pid #$ipc-path)
                      pid)))))
-          ;; TODO this should wait, herd restart fails now
-          (stop #~(make-kill-destructor))))))))
+          (stop #~(make-kill-destructor #:grace-period 60))))))))
 
 (define (make-unix-user-accounts config)
   (set! config (apply-config-defaults config))
-  (match-record
-      config <lighthouse-service-configuration>
-    (user user-id group group-id lighthouse-configuration)
-    (match-record
-          lighthouse-configuration <lighthouse-configuration>
-      (network datadir)
+  (match-record config <lighthouse-service-configuration>
+      (user user-id group group-id lighthouse-configuration)
+    (match-record lighthouse-configuration <lighthouse-configuration>
+        (network datadir)
       ;; NOTE it's safe to forward the #false default value of uid/gid to
       ;; USER-ACCOUNT.
       (append
@@ -269,15 +316,19 @@ the same value you provided as NETWORK.")
 (define (make-lighthouse-log-rotations service-config)
   (set! service-config (apply-config-defaults service-config))
   (match-record service-config <lighthouse-service-configuration>
-      (service-name lighthouse-configuration)
-    (let ((log-dir (default-log-directory)))
-      (list
-       (log-rotation
-        (files (list
-                (string-append log-dir "/service.log")
-                (lighthouse-log-filename log-dir service-name)))
-        (frequency 'weekly)
-        (options '("rotate 8")))))))
+      (service-name (lighthouse-configuration lh-config))
+    (begin ;;match-record lh-config <lighthouse-configuration>
+        ;;(network datadir logfile)
+      (let ((log-dir (default-log-directory)))
+          (list
+           (log-rotation
+            (files (list
+                    (string-append log-dir "/service.log")
+                    ;; TODO shall we rotate, or leave it to lighthouse?
+                    ;; logfile
+                    ))
+            (frequency 'weekly)
+            (options '("rotate 8"))))))))
 
 ;;
 ;; Interfacing with Guix
@@ -296,19 +347,3 @@ the same value you provided as NETWORK.")
           (service-extension rottlog-service-type
                              make-lighthouse-log-rotations)))
    (description "Runs an Lighthouse instance as a Shepherd service.")))
-
-(define* (lighthouse-service #:key
-                               (user                %unset-value)
-                               (group               %unset-value)
-                               (network             "mainnet")
-                               (service-name        'lighthouse)
-                               (ipc-path            %unset-value))
-  (service lighthouse-service-type
-           (lighthouse-service-configuration
-            (service-name            service-name)
-            (user                    user)
-            (group                   group)
-            (lighthouse-configuration
-             (lighthouse-configuration
-              (network               network)
-              (ipc-path              ipc-path))))))
