@@ -390,11 +390,11 @@ the chain).")
                            (begin
                              (log.debug "Generating JWT secret into ~S" password-file)
                              (unless (zero? (system cmd))
-                               (error "Failed to generate JWT secret" password-file))
-                             (chmod password-file #o440)
-                             (chown password-file
-                                    (or (ensure-uid #$user)  -1)
-                                    (or (ensure-gid #$group) -1)))))
+                               (error "Failed to generate JWT secret" password-file))))
+                       (chmod password-file #o440)
+                       (chown password-file
+                              (or (ensure-uid #$user)  -1)
+                              (or (ensure-gid #$group) -1)))
 
                      (define cmd '#$(cons*
                                      (file-append nethermind "/bin/Nethermind.Runner")
