@@ -75,6 +75,9 @@
 (define-public (current-system-as-go-system)
   (guix-system-name->go-system-name (%current-system)))
 
+(define-public (current-system-as-rust-system)
+  (guix-system-name->rust-system-name (%current-system)))
+
 (define-public* (github-release-uri org-name repo-name version file-name
                                     #:key (suffix ""))
   (values (string-append
@@ -112,6 +115,18 @@
 (define-public* (bee-release-uri arch version)
   (github-release-uri "ethersphere" "bee" version
                       (bee-release-file-name arch)))
+
+;;;
+;;; Swarm Tools
+;;;
+
+;; https://github.com/rndlabs/swarm-tools-rs/releases/download/v0.3.2/swarm-tools-rs_v0.3.2_x86_64-unknown-linux-musl.tar.gz
+(define-public* (swarm-tools/release-file-name arch version)
+  (string-append "swarm-tools-rs_v" version "_" arch "-musl.tar.gz"))
+
+(define-public* (swarm-tools/release-uri arch version)
+  (github-release-uri "rndlabs" "swarm-tools-rs" version
+                      (swarm-tools/release-file-name arch version)))
 
 ;;;
 ;;; Lighthouse

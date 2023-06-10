@@ -75,3 +75,39 @@ blockchain.  Bee is a Go implementation of a node in a Swarm.")
       (license license:bsd-3)
       (properties
        '((release-monitoring-url . "https://github.com/ethersphere/bee/releases"))))))
+
+(define-public swarm-tools-binary
+  (let ((version hashes (read-hashes-file "swarm-tools-binary")))
+    (package
+      (name "swarm-tools-binary")
+      (version version)
+      (source (origin
+                (method url-fetch)
+                (uri (swarm-tools/release-uri
+                      (current-system-as-rust-system) version))
+                (sha256 (base32 (or (assoc-ref hashes (%current-system))
+                                    (unsupported-arch name (%current-system)))))))
+      (build-system binary-build-system)
+      (arguments
+       `(#:install-plan `(("swarm-tools" "bin/"))
+         #:strip-binaries? #false       ; The less we modify, the better.
+         #:phases
+         (modify-phases %standard-phases
+           (delete 'patchelf)
+           (add-after 'unpack 'check
+             (lambda* (#:key (tests? #t) #:allow-other-keys)
+               (when tests?
+                 ;; At the time of this writing binary-build-system does not
+                 ;; support cross builds. When it will, it will hopefully
+                 ;; declare #:tests #f and this will keep working in cross
+                 ;; builds.
+                 (invoke "./swarm-tools" "--version")))))))
+      ;;(inputs (list glibc)) ; it's a statically linked, completely standalone executable
+      (supported-systems (map first hashes))
+      (home-page "https://github.com/rndlabs/swarm-tools-rs/")
+      (synopsis "A CLI tool for ethswarm.org related tasks")
+      (description
+       "Provides efficient, highly performant tools for interacting / calculating primitives used by Swarm.")
+      (license license:gpl3)
+      (properties
+       '((release-monitoring-url . "https://github.com/rndlabs/swarm-tools-rs/releases"))))))

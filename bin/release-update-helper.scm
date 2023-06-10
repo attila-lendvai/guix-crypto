@@ -103,6 +103,12 @@
      ,guix-system-name->rust-system-name
      ("x86_64-linux" "aarch64-linux"))
 
+    ("swarm-tools-binary"
+     ,swarm-tools/release-uri
+     ()
+     ,guix-system-name->rust-system-name
+     ("x86_64-linux"))
+
     ("feather-binary"
      ,feather-release-uri
      ;; Captured at 2023-02-04 by me, and also at 2021 oct by a trusted friend.
@@ -111,7 +117,8 @@
      ("x86_64-linux"))))
 
 (define (package-db-entry name)
-  (assoc-ref +package-db+ name))
+  (or (assoc-ref +package-db+ name)
+      (error "No package db entry for:" name)))
 
 (define *package-db-entry* (make-parameter '()))
 
