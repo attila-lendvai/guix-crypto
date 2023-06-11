@@ -486,6 +486,9 @@ directory specified as the first command line argument.")
                     #~(begin
                         (log.debug "Bee service is starting (~A Clef)" (if #$clef-signer-enable "with" "without"))
 
+                        ;; KLUDGE TODO this is here because shepherd respawns us in a busy loop
+                        ((@ (fibers) sleep) 2)
+
                         (ensure-directories/rec bee-user-id bee-group-id #o2770 #$data-dir)
                         (ensure-password-file #$(bee-password-file swarm-name) bee-user-id bee-group-id)
 
