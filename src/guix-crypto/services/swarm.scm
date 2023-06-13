@@ -356,7 +356,7 @@ a local Gnosis chain node instance, then you can add its name here.")
          (stop
           (let* ((data-dir (clef-data-directory swarm-name)))
             #~(lambda (pid . args)
-                (apply (make-kill-destructor #:grace-period 30) pid args)
+                (apply (make-kill-destructor #:grace-period 120) pid args)
                 ;; Just some best effort cleanup that is not necessary.
                 (false-if-exception (delete-file #$(string-append data-dir "/clef.ipc")))
                 (false-if-exception (delete-file #$(string-append data-dir "/stdin")))
@@ -521,7 +521,7 @@ directory specified as the first command line argument.")
                           ;; gets generated at service runtime. Hence we're
                           ;; passing it as an env variable.
                           (spawn-bee* "start"))))))
-            (stop #~(make-kill-destructor #:grace-period 30)))))))))
+            (stop #~(make-kill-destructor #:grace-period 120)))))))))
 
 (define (make-swarm-shepherd-services service-config)
   (set! service-config (apply-config-defaults service-config))
