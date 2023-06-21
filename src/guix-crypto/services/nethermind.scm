@@ -412,6 +412,7 @@ the chain).")
                         ;; so let's just keep this as a backup for now.
                         ;; remember: it's not rotated! so, resolve this soon...
                         #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
+                        #:resource-limits `((nofile 8192 8192))
                         #:environment-variables
                         (append
                          (list (string-append "HOME=" #$datadir)
