@@ -56,7 +56,7 @@
 (define-public +default-service-modules+
   (append '((gnu build shepherd)
             (guix-crypto utils))
-          ;; This %default-modules is from Shepherd.
+          ;; This %default-modules is from (gnu services shepherd).
           %default-modules))
 
 (define-syntax-rule (with-service-gexp-modules modules body ...)

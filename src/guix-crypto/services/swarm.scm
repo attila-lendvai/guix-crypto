@@ -19,6 +19,9 @@
 ;; - Use XDG_STATE_HOME for log files to support non-root shepherd?
 ;;   - https://issues.guix.gnu.org/53781
 ;; - make sure that passwords on the stack are not printed in backtraces
+;; - synchronize our config defaults with that of the Bee client?
+;; - add respawn delay. test scenario: broken swap endpoint url makes it respawn in a busy loop
+;;   - maybe add a respawn-delay to respawn-service in shepherd
 
 (define-module (guix-crypto services swarm)
   #:use-module (guix-crypto utils)

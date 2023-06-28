@@ -15,8 +15,9 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with guix-crypto.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; TODO this is copied from openethereum.scm; there's quite a lot of overlap
+;;; TODO this is copied from other services; there's quite a lot of overlap
 ;;;      waiting to be factored out.
+;;; TODO clean up the situation with the log. in theory the daemon also logs by itself, but it doesn't seem to work.
 
 (define-module (guix-crypto services nethermind)
   #:use-module (guix-crypto utils)
@@ -361,7 +362,7 @@ the chain).")
                      (ensure-directories 0 "nethermind" #o2771
                                          "/var/log/nethermind")
 
-                     (log.debug "Nethermind service is starting up, log initialized")
+                     (log.debug "Nethermind service is starting up, log initialized, args are ~A" args)
                      (log.dribble "PATH is ~S" (getenv "PATH"))
                      (log.dribble "SHELL is ~S" (getenv "SHELL"))
 
