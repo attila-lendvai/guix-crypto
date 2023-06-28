@@ -218,7 +218,8 @@ a local Gnosis chain node instance, then you can add its name here.")
     (swarm bee-user clef-user swarm-group
            (bee-configuration bee-cfg))
     (match-record bee-cfg <bee-configuration>
-        (mainnet data-dir password-file (network-id bee/network-id))
+        (mainnet data-dir password-file (network-id bee/network-id)
+        clef-signer-enable clef-signer-endpoint)
       (match-record swarm <swarm>
           ((name swarm-name) (network-id swarm/network-id))
         ;; Return with a copy in which everything is fully specified.
@@ -237,7 +238,10 @@ a local Gnosis chain node instance, then you can add its name here.")
            (network-id           (maybe-value bee/network-id swarm/network-id))
            (password-file        (maybe-value password-file  (bee-password-file swarm-name)))
            (data-dir             (maybe-value data-dir       (bee-data-directory swarm-name 0)))
-           (clef-signer-endpoint (clef-ipc-file swarm-name)))))))))
+           (clef-signer-endpoint (maybe-value clef-signer-endpoint
+                                              (if clef-signer-enable
+                                                  (clef-ipc-file swarm-name)
+                                                  %unset-value))))))))))
 
 (define (bee-configuration-for-node-index swarm template node-index)
 
