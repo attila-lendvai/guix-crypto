@@ -396,39 +396,38 @@ the chain).")
                               (or (ensure-uid #$user)  -1)
                               (or (ensure-gid #$group) -1)))
 
-                     (define cmd '#$(cons*
+                     (let ((cmd (append
+                                 '#$(cons*
                                      (file-append nethermind "/bin/Nethermind.Runner")
                                      (nethermind-configuration->cmd-arguments
-                                      nethermind-configuration)))
+                                      nethermind-configuration))
+                                 ;; Allow `herd start nethermind-srv --more-args-for-nethermind
+                                 args)))
 
-                     (log.debug "Will exec ~S" cmd)
+                       (log.debug "Will exec ~S" cmd)
 
-                     (define forkexec
-                       (make-forkexec-constructor
-                        cmd
-                        #:user #$user
-                        #:group #$group
-                        ;; TODO FIXME i can't seem to configure nethermind's log,
-                        ;; so let's just keep this as a backup for now.
-                        ;; remember: it's not rotated! so, resolve this soon...
-                        #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
-                        #:resource-limits `((nofile 8192 8192))
-                        #:environment-variables
-                        (append
-                         (list (string-append "HOME=" #$datadir)
-                               (string-append "PATH=" path-string))
-                         +root-environment+)))
-
-                     ;; We need to do this here, because we must not return from
-                     ;; START until the daemon is properly up and running,
-                     ;; otherwise any (requirement ...) specification on other
-                     ;; services is useless.
-                     (let ((pid (apply forkexec args)))
-                       ;; TODO revive
-                       ;; (when #$(or (undefined-value? no-ipc)
-                       ;;             (not no-ipc))
-                       ;;   (ensure-ipc-file-permissions pid #$ipc-path))
-                       pid))))))
+                       (let* ((forkexec
+                               (make-forkexec-constructor
+                                cmd
+                                #:user #$user
+                                #:group #$group
+                                ;; TODO FIXME i can't seem to configure nethermind's log,
+                                ;; so let's just keep this as a backup for now.
+                                ;; remember: it's not rotated! so, resolve this soon...
+                                #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
+                                #:resource-limits `((nofile 8192 8192))
+                                #:environment-variables
+                                (append
+                                 (list (string-append "HOME=" #$datadir)
+                                       (string-append "PATH=" path-string))
+                                 +root-environment+)))
+                              (pid (forkexec)))
+                         ;; TODO We should wait for some sign here that tells
+                         ;; us that the daemon has finished starting up,
+                         ;; otherwise any (requirement ...) specification on
+                         ;; other services is useless. But the RPC socket
+                         ;; comes online after minutes, not seconds.
+                         pid)))))))
           (stop
            #~(make-kill-destructor #:grace-period 120))))))))
 
