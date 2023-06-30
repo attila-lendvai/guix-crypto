@@ -761,30 +761,3 @@ number of times, in any random moment."
                              make-swarm-log-rotations)))
    (description "Runs the requested number of Bee instances, and optionally an \
 Ethereum Clef instance as a group of Shepherd services.")))
-
-(define* (swarm-service #:key
-                        (node-count 1)
-                        (resolver-options "")
-                        (blockchain-rpc-endpoint "ws://localhost:8546")
-                        (clef-signer-enable %unset-value)
-                        (swap-initial-deposit %unset-value)
-                        (swarm swarm/mainnet)
-                        (dependencies '())
-                        (bee-supplementary-groups '())
-                        (debug-api-enable #false)
-                        (db-open-files-limit +db-open-files-limit/default+))
-  (service swarm-service-type
-           (swarm-service-configuration
-            (swarm                           swarm)
-            (node-count                      node-count)
-            (bee-supplementary-groups        bee-supplementary-groups)
-            (shepherd-requirement            dependencies)
-            (bee-configuration
-             (bee-configuration
-              (clef-signer-enable    clef-signer-enable)
-              (resolver-options      resolver-options)
-              (blockchain-rpc-endpoint blockchain-rpc-endpoint)
-              (swap-initial-deposit  swap-initial-deposit)
-              (debug-api-enable      debug-api-enable)
-              (data-dir              (bee-data-directory (swarm-name swarm) 0))
-              (db-open-files-limit   db-open-files-limit))))))
