@@ -26,6 +26,7 @@
   #:use-module (guix-crypto packages swarm)
   #:use-module (guix-crypto services swarm)
   #:use-module (guix-crypto services lighthouse)
+  #:use-module (guix-crypto services nethermind)
   #:use-module (gnu tests)
   #:use-module (gnu system)
   #:use-module (gnu system shadow)
@@ -84,88 +85,94 @@
      `(#:tests? #false
        ,@(package-arguments *parent-shepherd-package*)))))
 
+(define *mainnet-group*
+  (user-group
+   (name "mainnet")
+   (system? #t)))
+
+(define *gnosis-user*
+  (user-account
+   (name "gnosis")
+   (group (user-group-name *mainnet-group*))
+   (supplementary-groups '("nethermind" "lighthouse"))
+   (system? #t)
+   (comment (string-append "User for the Gnosis chain daemons"))
+   (home-directory "/nohome")
+   (shell (file-append shadow "/sbin/nologin"))))
+
 (define *swarm-os*
   (operating-system
-    (inherit %simple-os)
-    ;; (users (cons* (user-account
-    ;;                (name "gnosis")
-    ;;                (comment "Gnosis endpoint user")
-    ;;                (group "swarm-mainnet")
-    ;;                (system? #true))
-    ;;               %base-user-accounts))
-    ;; (groups (append
-    ;;          (list
-    ;;           (user-group
-    ;;            ;; to make sure it's present even when the swarm service is disabled
-    ;;            (name "swarm-mainnet")
-    ;;            (system? #true)))
-    ;;          %base-groups))
-    (services
-     (cons*
-      (service dhcp-client-service-type)
+   (inherit %simple-os)
+   (users (cons*
+           *gnosis-user*
+           %base-user-accounts))
+   (groups (cons*
+            *mainnet-group*
+            %base-groups))
+   (services
+    (cons*
+     (service dhcp-client-service-type)
 
-      ;; (swarm-service #:node-count 2
-      ;;                #:blockchain-rpc-endpoint "/var/lib/openethereum/gnosis/gnosis.ipc"
-      ;;                #:bee-supplementary-groups '("openethereum")
-      ;;                #:swap-initial-deposit 0
-      ;;                #:dependencies '(gnosis))
+     (service
+      nethermind-service-type
+      (nethermind-service-configuration
+       (service-name            'gnosis-e)
+       (user-account            *gnosis-user*)
+       (nethermind-configuration
+        (nethermind-configuration
+         (config                "gnosis")
+         ;;(Sync.FastSync         #true)
+         (JsonRpc.JwtSecretFile "/var/lib/nethermind/jwt-secret")
+         (extra-arguments       '())))))
 
-      (service
-       swarm-service-type
-       (swarm-service-configuration
-        (swarm                           swarm/mainnet)
-        (node-count                      2)
-        (shepherd-requirement '(gnosis))
+     (service
+      lighthouse-service-type
+      (lighthouse-service-configuration
+       (service-name            'gnosis-c)
+       (user                    "gnosis")
+       (group                   "mainnet")
+       (shepherd-requirement    '(gnosis-e))
+       (lighthouse-configuration
+        (lighthouse-configuration
+         (network               "gnosis")
+         (logfile-compress      #true)
+         (extra-arguments       '((http #true)
+                                  (execution-endpoint "http://localhost:8551")
+                                  (execution-jwt "/var/lib/nethermind/jwt-secret")
+                                  (checkpoint-sync-url "https://checkpoint.gnosischain.com")))))))
+
+     (service
+      swarm-service-type
+      (swarm-service-configuration
+       (swarm                           swarm/mainnet)
+       (node-count                      2)
+       ;;(shepherd-requirement '(gnosis))
+       (bee-configuration
         (bee-configuration
-         (bee-configuration
-          (blockchain-rpc-endpoint        "/var/lib/openethereum/gnosis/gnosis.ipc")
-          (swap-initial-deposit 0)
-          (debug-api-enable     #true)))))
+         (clef-signer-enable   #false)
+         (resolver-options               "https://mainnet.infura.io/v3/7216e0c44a0c47d99ca6de1c82b5d7b9")
+         ;;(blockchain-rpc-endpoint        "/var/lib/openethereum/gnosis/gnosis.ipc")
+         ;;(blockchain-rpc-endpoint        "https://gno.getblock.io/30f88254-c3fb-4188-a991-060f50085ecb/mainnet/")
+         (blockchain-rpc-endpoint        "http://serlap.lan:8545")
+         (swap-initial-deposit 0)
+         (debug-api-enable     #true)))))
 
-      (lighthouse-service #:service-name   'gnosis
-                          #:network        "gnosis"
-                          #:user           "gnosis"
-                          #:enable-snapshotting #true
-                          #:warp-barrier   20420000)
-
-      ;; (openethereum-service #:service-name 'gnosis
-      ;;                       #:chain        "xdai"
-      ;;                       #:user         "gnosis"
-      ;;                       #:group        "swarm-mainnet"
-      ;;                       #:snapshot-peers 10
-      ;;                       #:enable-snapshotting #true
-      ;;                       #:warp-barrier 20420000)
-
-      ;; (service openethereum-service-type
-      ;;          (openethereum-service-configuration
-      ;;           (service-name            'xdai)
-      ;;           (user                    "xdai")
-      ;;           (group                   "swarm-mainnet")
-      ;;           (openethereum-configuration
-      ;;            (openethereum-configuration
-      ;;             (chain                 "xdai")
-      ;;             (nat                   "upnp")
-      ;;             (max-peers             50)
-      ;;             (snapshot-peers        10)
-      ;;             (warp-barrier          20400000)
-      ;;             (scale-verifiers       #true)))))
-
-      (modify-services %base-services
-        (sysctl-service-type config =>
-                             (sysctl-configuration
-                              (settings (append '(("fs.file-max" . "500000")
-                                                  ("fs.inotify.max_user_watches" . "524288"))
-                                                %default-sysctl-settings)))))))
-    ;; Use own Shepherd package.
-    (essential-services
-     (modify-services (operating-system-default-essential-services
-                       this-operating-system)
-       (shepherd-root-service-type config =>
-                                   (shepherd-configuration
-                                    (inherit config)
-                                    (shepherd (if *use-custom-shepherd*
-                                                  custom-shepherd
-                                                  shepherd))))))))
+     (modify-services %base-services
+       (sysctl-service-type config =>
+                            (sysctl-configuration
+                             (settings (append '(("fs.file-max" . "500000")
+                                                 ("fs.inotify.max_user_watches" . "524288"))
+                                               %default-sysctl-settings)))))))
+   ;; Use own Shepherd package.
+   (essential-services
+    (modify-services (operating-system-default-essential-services
+                      this-operating-system)
+                     (shepherd-root-service-type config =>
+                                                 (shepherd-configuration
+                                                  (inherit config)
+                                                  (shepherd (if *use-custom-shepherd*
+                                                                custom-shepherd
+                                                                shepherd))))))))
 
 (define *swarm-marionette-os*
   (marionette-operating-system
