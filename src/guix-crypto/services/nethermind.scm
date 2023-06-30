@@ -264,14 +264,8 @@ PROVISION value of the Shepherd service, as a path component in the \
 data and log directories, and in various defaults. You typically want \
 to use here the same value you provided as the CONFIG (the name of \
 the chain).")
-  (user                  maybe-string
-   "Unix user for the service process.")
-  (user-id               maybe-non-negative-integer
-   "Unix uid for @code{user}.")
-  (group                 maybe-string
-   "Unix group for @code{user} and the service processes.")
-  (group-id              maybe-non-negative-integer
-   "Unix gid for @code{group}.")
+  (user-account          user-account
+   "USER-ACCOUNT object (as per (gnu system shadow)) specifying the unix user/group the service process should run under.")
   (nethermind-configuration nethermind-configuration
    "Configuration for the Nethermind binary."))
 
@@ -292,9 +286,7 @@ the chain).")
 
 (define (apply-config-defaults cfg)
   (match-record cfg <nethermind-service-configuration>
-      (user
-       group
-       service-name
+      (service-name
        (nethermind-configuration nm-config))
     (match-record nm-config <nethermind-configuration>
         ((config nm-config-field)
@@ -308,8 +300,6 @@ the chain).")
                                          (string-append "nm-" chain-name)))))
         (nethermind-service-configuration
          (inherit cfg)
-         (user         (maybe-value user (string-append "nm-" chain-name)))
-         (group        (maybe-value group "nethermind"))
          (service-name service-name)
          (nethermind-configuration
           (nethermind-configuration
@@ -332,7 +322,7 @@ the chain).")
   (set! cfg (apply-config-defaults cfg))
   (with-service-gexp-modules '()
     (match-record cfg <nethermind-service-configuration>
-        (user group service-name nethermind nethermind-configuration)
+        (user-account service-name nethermind nethermind-configuration)
       (match-record nethermind-configuration <nethermind-configuration>
           ((config nm-config-field)
            datadir
@@ -356,7 +346,9 @@ the chain).")
                                               (take (append-map list path-list
                                                                 (list-tabulate path-count
                                                                                (const ":")))
-                                                    (1- (* path-count 2))))))
+                                                    (1- (* path-count 2)))))
+                          (user  '#$(user-account-name  user-account))
+                          (group '#$(user-account-group user-account)))
                      (setenv "PATH" path-string)
 
                      (ensure-directories 0 "nethermind" #o2771
@@ -371,7 +363,7 @@ the chain).")
 
                      (log.dribble "/var/lib/nethermind initialized")
 
-                     (ensure-directories/rec #$user #$group #o2751
+                     (ensure-directories/rec user group #o2751
                                              #$datadir)
 
                      (log.dribble "Nethermind data dir is initialized (~S)" #$datadir)
@@ -394,8 +386,8 @@ the chain).")
                                (error "Failed to generate JWT secret" password-file))))
                        (chmod password-file #o440)
                        (chown password-file
-                              (or (ensure-uid #$user)  -1)
-                              (or (ensure-gid #$group) -1)))
+                              (or (ensure-uid user)  -1)
+                              (or (ensure-gid group) -1)))
 
                      (let ((cmd (append
                                  '#$(cons*
@@ -410,12 +402,13 @@ the chain).")
                        (let* ((forkexec
                                (make-forkexec-constructor
                                 cmd
-                                #:user #$user
-                                #:group #$group
-                                ;; TODO FIXME i can't seem to configure nethermind's log,
-                                ;; so let's just keep this as a backup for now.
-                                ;; remember: it's not rotated! so, resolve this soon...
-                                #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
+                                #:user user
+                                #:group group
+                                #:supplementary-groups '#$(user-account-supplementary-groups user-account)
+                                ;; Nethermind has its own logging infrastructure. Logging the stdout/stderr
+                                ;; can be beneficial, though for errors that happen before or related to
+                                ;; the logging system initialization.
+                                ;; #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
                                 #:resource-limits `((nofile 8192 8192))
                                 #:environment-variables
                                 (append
@@ -432,38 +425,14 @@ the chain).")
           (stop
            #~(make-kill-destructor #:grace-period 120))))))))
 
-(define (make-unix-user-accounts cfg)
-  (set! cfg (apply-config-defaults cfg))
-  (match-record
-      cfg <nethermind-service-configuration>
-    (user user-id group group-id nethermind-configuration)
-    (match-record
-          nethermind-configuration <nethermind-configuration>
-      ((config nm-config-field) datadir)
-      ;; NOTE it's safe to forward the #false default value of uid/gid to
-      ;; USER-ACCOUNT.
-      (let ((chain-name (chain-name-from-config nm-config-field)))
-        (append
-         (if (equal? group "nethermind")
-             '()
-             (list
-              (user-group
-               (name "nethermind")
-               (system? #t))))
-         (list
-          (user-group
-           (name group)
-           (id (maybe-value group-id))
-           (system? #t))
-          (user-account
-           (name user)
-           (uid (maybe-value user-id))
-           (group group)
-           (supplementary-groups (delete group '("nethermind")))
-           (system? #t)
-           (comment (string-append "Nethermind service for chain '" chain-name "'"))
-           (home-directory datadir)
-           (shell (file-append shadow "/sbin/nologin")))))))))
+(define (make-unix-user-accounts service-config)
+  ;; It's a tempting idea to list USER-ACCOUNT here, but then what to do with
+  ;; the group? The GROUP slot is only a string (as opposed to a USER-GROUP
+  ;; instance).
+  (list
+   (user-group
+    (name "nethermind")
+    (system? #t))))
 
 (define (make-nethermind-log-rotations service-config)
   (set! service-config (apply-config-defaults service-config))
