@@ -84,46 +84,6 @@
 (define-public (bee-service-name swarm-name bee-index)
   (string->symbol (simple-format #f "bee-~A-~A" swarm-name bee-index)))
 
-(define-public* (spawn-bee binary config-file action swarm-name bee-index user group
-                           #:key
-                           resource-limits
-                           resolver-options
-                           blockchain-rpc-endpoint
-                           eth-address)
-  (log.dribble "About to spawn bee action ~S, with config ~S, and binary ~S" action config-file binary)
-  (let ((data-dir (bee-data-directory swarm-name bee-index)))
-    ;; TODO use spawn instead
-    (apply (@@ (shepherd) fork+exec-command) ; TODO why can't i just #:use-module (shepherd) above?
-           (list binary
-                 "--config" config-file
-                 action)
-           #:user user
-           #:group group
-           #:log-file (bee-log-filename (default-log-directory swarm-name)
-                                        bee-index)
-           #:directory data-dir
-           #:environment-variables
-           (delete #false
-                   (append
-                    (list
-                     (string-append "HOME=" data-dir)
-                     ;; So that these are not visible with ps, or in the
-                     ;; config file (i.e. world-readable under
-                     ;; /gnu/store/), because they may contain keys when
-                     ;; using a service like Infura.
-                     (and blockchain-rpc-endpoint
-                          (string-append "BEE_BLOCKCHAIN_RPC_ENDPOINT="
-                                         blockchain-rpc-endpoint))
-                     (and resolver-options
-                          (string-append "BEE_RESOLVER_OPTIONS=" resolver-options))
-                     (and eth-address
-                          (string-append "BEE_CLEF_SIGNER_ETHEREUM_ADDRESS=" eth-address)))
-                    +root-environment+))
-
-           (if resource-limits
-               (list #:resource-limits resource-limits)
-               '()))))
-
 ;; Clef command list:
 ;; https://github.com/ethereum/go-ethereum/blob/master/signer/core/stdioui.go
 ;; https://github.com/ethereum/go-ethereum/blob/master/signer/core/uiapi.go

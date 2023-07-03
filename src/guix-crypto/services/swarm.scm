@@ -95,6 +95,8 @@
 (define-maybe boolean)
 (define-maybe integer)
 (define-maybe non-negative-integer)
+(define-maybe user-account)
+(define-maybe user-group)
 
 (define serialize-string  serialize-field)
 (define serialize-boolean serialize-field)
@@ -201,20 +203,12 @@ Bee node's Shepherd service instance; i.e. here you can specify extra \
 dependencies for the start order of the services, e.g. if you are running \
 a local Gnosis chain node instance, then you can add its name here.")
   ;; Users and groups
-  (bee-user              maybe-string
-                         "Unix user for the Bee processes in this swarm.")
-  (bee-user-id           maybe-non-negative-integer
-                         "Unix uid for @code{bee-user}.")
-  (bee-supplementary-groups (list '())
-                            "Supplementary groups for the BEE-USER.")
-  (clef-user             maybe-string
+  (bee-user              maybe-user-account
+                         "USER-ACCOUNT object specifying the Unix user for the Bee processes.")
+  (clef-user             maybe-user-account
                          "Unix user for the clef process in this swarm.")
-  (clef-user-id          maybe-non-negative-integer
-                         "Unix uid for @code{clef-user}.")
-  (swarm-group           maybe-string
-                         "Unix group for the users in this swarm.")
-  (swarm-group-id        maybe-non-negative-integer
-                         "Unix gid for @code{swarm-group}."))
+  (swarm-group           maybe-user-group
+                         "Unix group for the users in this swarm. Defaults to a system group with name 'swarm-[swarm-name]'"))
 
 (define (apply-config-defaults service-config)
   (match-record service-config <swarm-service-configuration>
@@ -225,26 +219,49 @@ a local Gnosis chain node instance, then you can add its name here.")
         clef-signer-enable clef-signer-endpoint)
       (match-record swarm <swarm>
           ((name swarm-name) (network-id swarm/network-id))
-        ;; Return with a copy in which everything is fully specified.
-        (swarm-service-configuration
-         (inherit service-config)
-         (bee-user       (maybe-value bee-user    (string-append "bee-"   swarm-name)))
-         (clef-user      (maybe-value clef-user   (string-append "clef-"  swarm-name)))
-         (swarm-group    (maybe-value swarm-group (string-append "swarm-" swarm-name)))
-         (bee-configuration
-          ;; This config will be used when NODE-COUNT is 1. Otherwise
-          ;; BEE-CONFIGURATION-FOR-NODE-INDEX will be used to generate the
-          ;; indexed cfg instances for each node.
-          (bee-configuration
-           (inherit bee-cfg)
-           (mainnet              (maybe-value mainnet        (equal? swarm-name "mainnet")))
-           (network-id           (maybe-value bee/network-id swarm/network-id))
-           (password-file        (maybe-value password-file  (bee-password-file swarm-name)))
-           (data-dir             (maybe-value data-dir       (bee-data-directory swarm-name 0)))
-           (clef-signer-endpoint (maybe-value clef-signer-endpoint
-                                              (if clef-signer-enable
-                                                  (clef-ipc-file swarm-name)
-                                                  %unset-value))))))))))
+        (let ((swarm-group (maybe-value
+                            swarm-group
+                            (user-group
+                             (name (string-append "swarm-" swarm-name))
+                             (system? #t)))))
+          ;; Return with a copy in which everything is fully specified.
+          (swarm-service-configuration
+           (inherit service-config)
+           (swarm-group swarm-group)
+           (bee-user  (maybe-value
+                       bee-user
+                       (user-account
+                        (name (string-append "bee-" swarm-name))
+                        (group (user-group-name swarm-group))
+                        (supplementary-groups '("swarm"))
+                        (system? #t)
+                        (comment (string-append "Swarm Bee service user for swarm " swarm-name))
+                        (home-directory (swarm-data-directory swarm-name))
+                        (shell (file-append shadow "/sbin/nologin")))))
+           (clef-user (maybe-value
+                       clef-user
+                       (user-account
+                        (name (string-append "clef-"  swarm-name))
+                        (group (user-group-name swarm-group))
+                        (supplementary-groups '("swarm"))
+                        (system? #t)
+                        (comment (string-append "Unix user for the Clef process of swarm " swarm-name))
+                        (home-directory "/nohome")
+                        (shell (file-append shadow "/sbin/nologin")))))
+           (bee-configuration
+            ;; This config will be used when NODE-COUNT is 1. Otherwise
+            ;; BEE-CONFIGURATION-FOR-NODE-INDEX will be used to generate the
+            ;; indexed cfg instances for each node.
+            (bee-configuration
+             (inherit bee-cfg)
+             (mainnet              (maybe-value mainnet        (equal? swarm-name "mainnet")))
+             (network-id           (maybe-value bee/network-id swarm/network-id))
+             (password-file        (maybe-value password-file  (bee-password-file swarm-name)))
+             (data-dir             (maybe-value data-dir       (bee-data-directory swarm-name 0)))
+             (clef-signer-endpoint (maybe-value clef-signer-endpoint
+                                                (if clef-signer-enable
+                                                    (clef-ipc-file swarm-name)
+                                                    %unset-value)))))))))))
 
 (define (bee-configuration-for-node-index swarm template node-index)
 
@@ -267,7 +284,7 @@ a local Gnosis chain node instance, then you can add its name here.")
 (define (make-shepherd-service/clef service-config)
   (with-service-gexp-modules '((guix-crypto swarm-utils))
     (match-record service-config <swarm-service-configuration>
-        (swarm geth clef-user swarm-group)
+        (swarm geth clef-user)
       (match-record swarm <swarm>
           ((name swarm-name) clef-chain-id)
         (shepherd-service
@@ -308,8 +325,9 @@ a local Gnosis chain node instance, then you can add its name here.")
 
                          (let ((pid (fork+exec-command
                                      #$cmd
-                                     #:user #$clef-user
-                                     #:group #$swarm-group
+                                     #:user  '#$(user-account-name  clef-user)
+                                     #:group '#$(user-account-group clef-user)
+                                     #:supplementary-groups '#$(user-account-supplementary-groups clef-user)
                                      #:log-file (string-append (*log-directory*) "/clef.log")
                                      #:environment-variables
                                      (append
@@ -490,7 +508,8 @@ directory specified as the first command line argument.")
              #~(lambda _
                  #$(swarm-service-start-gexp
                     service-config
-                    #~(begin
+                    #~(let ((swarm-name '#$swarm-name)
+                            (bee-index '#$bee-index))
                         (log.debug "Bee service is starting (~A Clef)" (if #$clef-signer-enable "with" "without"))
 
                         ;; KLUDGE TODO this is here because shepherd respawns us in a busy loop
@@ -500,28 +519,47 @@ directory specified as the first command line argument.")
                         (ensure-password-file #$(bee-password-file swarm-name) bee-user-id bee-group-id)
 
                         (let ((eth-address (and #$clef-signer-enable
-                                                (ensure-clef-account #$swarm-name #$bee-index))))
+                                                (ensure-clef-account swarm-name bee-index))))
 
                           (define (spawn-bee* action)
-                            (spawn-bee #$(file-append bee "/bin/bee")
-                                       #$config-file
-                                       action
-                                       #$swarm-name #$bee-index
-                                       #$bee-user #$swarm-group
-                                       #:blockchain-rpc-endpoint #$blockchain-rpc-endpoint
-                                       #:resolver-options #$resolver-options
-                                       #:eth-address eth-address
-                                       #:resource-limits
-                                       `((nofile ,#$(+ db-open-files-limit 4096)
-                                                 ,#$(+ db-open-files-limit 4096)))))
+                            (let ((cmd (list #$(file-append bee "/bin/bee")
+                                             "--config" #$config-file
+                                             action)))
+                              (log.dribble "About to spawn Bee, cmd is: ~S" cmd)
+                              (fork+exec-command
+                               cmd
+                               #:user '#$(user-account-name bee-user)
+                               #:group '#$(user-group-name swarm-group)
+                               #:log-file (bee-log-filename (default-log-directory swarm-name)
+                                                            bee-index)
+                               #:directory #$data-dir
+                               #:resource-limits `((nofile ,#$(+ db-open-files-limit 4096)
+                                                           ,#$(+ db-open-files-limit 4096)))
+                               #:environment-variables
+                               (delete #false
+                                       (append
+                                        (list
+                                         (string-append "HOME=" #$data-dir)
+                                         ;; So that these are not visible with ps, or in the
+                                         ;; config file (i.e. world-readable under
+                                         ;; /gnu/store/), because they may contain keys when
+                                         ;; using a service like Infura.
+                                         (and #$blockchain-rpc-endpoint
+                                              (string-append "BEE_BLOCKCHAIN_RPC_ENDPOINT="
+                                                             #$blockchain-rpc-endpoint))
+                                         (and #$resolver-options
+                                              (string-append "BEE_RESOLVER_OPTIONS=" #$resolver-options))
+                                         (and eth-address
+                                              (string-append "BEE_CLEF_SIGNER_ETHEREUM_ADDRESS=" eth-address)))
+                                        +root-environment+)))))
 
                           ;; When first started, call `bee init` for this bee
                           ;; instance.
                           (unless (file-exists? #$libp2p-key)
-                            (log.debug "Invoking `bee init` for bee-index ~S in swarm ~S" #$bee-index #$swarm-name)
+                            (log.debug "Invoking `bee init` for bee-index ~S in swarm ~S" bee-index swarm-name)
                             (wait-for-pid
                              (spawn-bee* "init"))
-                            (log.dribble "`bee init` finished for bee-index ~S in swarm ~S" #$bee-index #$swarm-name))
+                            (log.dribble "`bee init` finished for bee-index ~S in swarm ~S" bee-index swarm-name))
 
                           ;; Due to staged compilation, we cannot add the node's
                           ;; eth address to the config bee file, because it only
@@ -561,15 +599,17 @@ directory specified as the first command line argument.")
 
 (define (clef-activation-gexp service-config)
   (match-record service-config <swarm-service-configuration>
-      (swarm geth node-count bee-user clef-user swarm-group)
+      (swarm geth node-count clef-user swarm-group)
     (match-record swarm <swarm>
         ((name swarm-name))
       (let ((data-dir      (clef-data-directory swarm-name))
             (keystore-dir  (clef-keystore-directory swarm-name)))
         #~(let* ((clef-pwd-file #$(clef-password-file swarm-name))
-                 (clef-pw       (getpwnam #$clef-user))
-                 (clef-user-id  (passwd:uid clef-pw))
-                 (clef-group-id (passwd:gid clef-pw)))
+                 ;; reduce/rebind the USER-ACCOUNT and USER-GROUP instances into their names
+                 (clef-pw        (getpwnam '#$(user-account-name clef-user)))
+                 (clef-user-id   (passwd:uid clef-pw))
+                 ;; TODO should this come from clef-pw or from swarm-group?
+                 (clef-group-id  (passwd:gid clef-pw)))
 
             (log.debug "Clef activation started")
 
@@ -634,7 +674,10 @@ number of times, in any random moment."
                  (tr            #$(file-append coreutils "/bin/tr"))
                  (head          #$(file-append coreutils "/bin/head"))
                  (chown-bin     #$(file-append coreutils "/bin/chown"))
-                 (bee-pw        (getpwnam #$bee-user))
+                 ;; reduce/rebind the USER-ACCOUNT and USER-GROUP instances into their names
+                 (swarm-group   #$(user-group-name swarm-group))
+                 (bee-user      #$(user-account-name bee-user))
+                 (bee-pw        (getpwnam bee-user))
                  (bee-user-id   (passwd:uid bee-pw))
                  (bee-group-id  (passwd:gid bee-pw))
                  (log-dir       #$(default-log-directory swarm-name)))
@@ -643,7 +686,7 @@ number of times, in any random moment."
             (setenv "PATH" path)
             (with-log-directory log-dir
                                 ;; Log files are not visible to everyone.
-              (ensure-directories/rec #$bee-user #$swarm-group #o2770
+              (ensure-directories/rec bee-user swarm-group #o2770
                                       log-dir)
 
               ;; Ensure as root that the service.log file exists, and it is group
@@ -657,7 +700,7 @@ number of times, in any random moment."
 
               (let ((dir #$(swarm-data-directory swarm-name)))
                 ;; The data dir is visible to everyone.
-                (ensure-directories 0 #$swarm-group #o2770 dir)
+                (ensure-directories 0 swarm-group #o2770 dir)
                 (log.debug "Ensured directory ~S" dir))
 
               #$body-gexp))))))
@@ -678,53 +721,30 @@ number of times, in any random moment."
                    (-log-dir-       #$(default-log-directory swarm-name)))
               (setenv "PATH" -path-)
               (with-log-directory -log-dir-
-                                  ;; Log files are not visible to everyone.
-                                  (ensure-directories/rec #$bee-user #$swarm-group #o2770
-                                                          -log-dir-)
-                                  #$body-gexp)))))))
+                ;; Log files are not visible to everyone.
+                (ensure-directories/rec #$(user-account-name bee-user)
+                                        #$(user-group-name swarm-group)
+                                        #o2770
+                                        -log-dir-)
+                #$body-gexp)))))))
 
 (define (make-swarm-user-accounts service-config)
   (set! service-config (apply-config-defaults service-config))
   (match-record service-config <swarm-service-configuration>
-      (swarm bee-user bee-user-id clef-user clef-user-id
-             swarm-group swarm-group-id bee-supplementary-groups
-             bee-configuration)
-    ;; NOTE it's safe to forward the #false default value of uid/gid to
-    ;; USER-ACCOUNT.
+      (swarm bee-user clef-user swarm-group bee-configuration)
     (match-record swarm <swarm>
         ((name swarm-name))
       (match-record bee-configuration <bee-configuration>
           (clef-signer-enable)
         (append
          (if clef-signer-enable
-             (list
-              (user-account
-               (name clef-user)
-               (uid (maybe-value clef-user-id))
-               (group swarm-group)
-               (system? #t)
-               (comment (string-append "Service user for the clef instance of swarm "
-                                       swarm-name))
-               (home-directory (swarm-data-directory swarm-name))
-               (shell (file-append shadow "/sbin/nologin"))))
+             (list clef-user)
              '())
          (list (user-group
                 (name "swarm")
                 (system? #t))
-               (user-group
-                (name swarm-group)
-                (id (maybe-value swarm-group-id))
-                (system? #t))
-               (user-account
-                (name bee-user)
-                (uid (maybe-value bee-user-id))
-                (group swarm-group)
-                (supplementary-groups bee-supplementary-groups)
-                (system? #t)
-                (comment (string-append "Swarm Bee service user for swarm "
-                                        swarm-name))
-                (home-directory (swarm-data-directory swarm-name))
-                (shell (file-append shadow "/sbin/nologin")))))))))
+               swarm-group
+               bee-user))))))
 
 (define (make-swarm-log-rotations service-config)
   (set! service-config (apply-config-defaults service-config))
