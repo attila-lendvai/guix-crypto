@@ -102,7 +102,7 @@ censorship, fraud or third party interference.")
        '((release-monitoring-url . "https://github.com/ethereum/go-ethereum/releases"))))))
 
 (define-public nethermind-binary
-  (let ((commit-hash "e8ac1da4")       ; first 8 digits of the tagged commit's hash
+  (let ((commit-hash "2d43e907")       ; first 8 digits of the tagged commit's hash
         (version hashes (read-hashes-file "nethermind-binary")))
     (package
       (name "nethermind-binary")
