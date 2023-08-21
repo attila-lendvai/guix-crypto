@@ -388,7 +388,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                 (false-if-exception (delete-file #$(string-append data-dir "/stdout")))
                 #false))))))))
 
-(define (make-shepherd-service/bee bee-index service-config singular?)
+(define (make-shepherd-service/bee bee-index service-config)
   (with-service-gexp-modules '((guix build utils)
                                (guix-crypto swarm-utils)
                                (json))
@@ -402,8 +402,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                       db-open-files-limit)
          ;; TODO add: cashout, withdraw, balances, settlements, backup-identity
          (let* ((data-dir     (bee-data-directory swarm-name bee-index))
-                (libp2p-key   (string-append data-dir "/keys/libp2p.key"))
-                (bee-cfg      (if singular?
+                (bee-cfg      (if (equal? 1 node-count)
                                   bee-configuration
                                   (bee-configuration-for-node-index
                                    swarm bee-configuration bee-index)))
@@ -502,6 +501,7 @@ directory specified as the first command line argument.")
                            backup-identity-action))
             (modules (append
                       '((guix-crypto swarm-utils)
+                        (srfi srfi-1)
                         (json))
                       +default-service-modules+))
             (start
@@ -509,13 +509,14 @@ directory specified as the first command line argument.")
                  #$(swarm-service-start-gexp
                     service-config
                     #~(let ((swarm-name '#$swarm-name)
-                            (bee-index '#$bee-index))
+                            (bee-index  '#$bee-index)
+                            (data-dir   '#$data-dir))
                         (log.debug "Bee service is starting (~A Clef)" (if #$clef-signer-enable "with" "without"))
 
                         ;; KLUDGE TODO this is here because shepherd respawns us in a busy loop
                         ((@ (fibers) sleep) 2)
 
-                        (ensure-directories/rec bee-user-id bee-group-id #o2770 #$data-dir)
+                        (ensure-directories/rec bee-user-id bee-group-id #o2770 data-dir)
                         (ensure-password-file #$(bee-password-file swarm-name) bee-user-id bee-group-id)
 
                         (let ((eth-address (and #$clef-signer-enable
@@ -532,14 +533,14 @@ directory specified as the first command line argument.")
                                #:group '#$(user-group-name swarm-group)
                                #:log-file (bee-log-filename (default-log-directory swarm-name)
                                                             bee-index)
-                               #:directory #$data-dir
+                               #:directory data-dir
                                #:resource-limits `((nofile ,#$(+ db-open-files-limit 4096)
                                                            ,#$(+ db-open-files-limit 4096)))
                                #:environment-variables
                                (delete #false
                                        (append
                                         (list
-                                         (string-append "HOME=" #$data-dir)
+                                         (string-append "HOME=" data-dir)
                                          ;; So that these are not visible with ps, or in the
                                          ;; config file (i.e. world-readable under
                                          ;; /gnu/store/), because they may contain keys when
@@ -553,9 +554,17 @@ directory specified as the first command line argument.")
                                               (string-append "BEE_CLEF_SIGNER_ETHEREUM_ADDRESS=" eth-address)))
                                         +root-environment+)))))
 
+                          (define (bee-already-initialized?)
+                            (any (lambda (el)
+                                   (file-exists?
+                                    (string-append data-dir "/keys/" el)))
+                                 '("libp2p_v2.key"
+                                   "swarm.key"
+                                   "pss.key")))
+
                           ;; When first started, call `bee init` for this bee
                           ;; instance.
-                          (unless (file-exists? #$libp2p-key)
+                          (unless (bee-already-initialized?)
                             (log.debug "Invoking `bee init` for bee-index ~S in swarm ~S" bee-index swarm-name)
                             (wait-for-pid
                              (spawn-bee* "init"))
@@ -579,8 +588,7 @@ directory specified as the first command line argument.")
            (list (make-shepherd-service/clef service-config))
            '())
        (map (lambda (bee-index)
-              (make-shepherd-service/bee bee-index service-config
-                                         (equal? 1 node-count)))
+              (make-shepherd-service/bee bee-index service-config))
             (iota node-count))))))
 
 (define (upstream-bee-clef-file relative-path)
