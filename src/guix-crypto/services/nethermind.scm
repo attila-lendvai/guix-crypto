@@ -409,6 +409,7 @@ the chain).")
                                 ;; can be beneficial, though for errors that happen before or related to
                                 ;; the logging system initialization.
                                 ;; #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
+                                #:log-file "/dev/null"
                                 #:resource-limits `((nofile 8192 8192))
                                 #:environment-variables
                                 (append
