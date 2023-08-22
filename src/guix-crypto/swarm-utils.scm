@@ -83,7 +83,10 @@
   (string->symbol (simple-format #f "clef-~A" swarm-name)))
 
 (define-public (bee-service-name swarm-name bee-index)
-  (string->symbol (simple-format #f "bee-~A-~A" swarm-name bee-index)))
+  (string->symbol
+   (if (equal? "mainnet" swarm-name)
+       (simple-format #f "bee-~A" bee-index)
+       (simple-format #f "bee-~A-~A" swarm-name bee-index))))
 
 ;; Clef command list:
 ;; https://github.com/ethereum/go-ethereum/blob/master/signer/core/stdioui.go
