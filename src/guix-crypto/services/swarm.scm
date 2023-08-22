@@ -256,7 +256,7 @@ a local Gnosis chain node instance, then you can add its name here.")
              (inherit bee-cfg)
              (mainnet              (maybe-value mainnet        (equal? swarm-name "mainnet")))
              (network-id           (maybe-value bee/network-id swarm/network-id))
-             (password-file        (maybe-value password-file  (bee-password-file swarm-name)))
+             (password-file        (maybe-value password-file  (bee-password-file swarm-name 0)))
              (data-dir             (maybe-value data-dir       (bee-data-directory swarm-name 0)))
              (clef-signer-endpoint (maybe-value clef-signer-endpoint
                                                 (if clef-signer-enable
@@ -276,7 +276,8 @@ a local Gnosis chain node instance, then you can add its name here.")
      (p2p-addr       (as-addr-string p2p-port-base))
      (api-addr       (as-addr-string api-port-base))
      (debug-api-addr (string-append "localhost" (as-addr-string debug-api-port-base)))
-     (data-dir       (bee-data-directory swarm-name node-index)))))
+     (data-dir       (bee-data-directory swarm-name node-index))
+     (password-file  (bee-password-file  swarm-name node-index)))))
 
 ;;;
 ;;; Service implementation
@@ -399,7 +400,7 @@ a local Gnosis chain node instance, then you can add its name here.")
          ((name swarm-name) network-id)
        (match-record bee-configuration <bee-configuration>
            (full-node resolver-options blockchain-rpc-endpoint clef-signer-enable
-                      db-open-files-limit)
+                      db-open-files-limit password-file)
          ;; TODO add: cashout, withdraw, balances, settlements, backup-identity
          (let* ((data-dir     (bee-data-directory swarm-name bee-index))
                 (bee-cfg      (if (equal? 1 node-count)
@@ -510,14 +511,15 @@ directory specified as the first command line argument.")
                     service-config
                     #~(let ((swarm-name '#$swarm-name)
                             (bee-index  '#$bee-index)
-                            (data-dir   '#$data-dir))
+                            (data-dir   '#$data-dir)
+                            (password-file '#$password-file))
                         (log.debug "Bee service is starting (~A Clef)" (if #$clef-signer-enable "with" "without"))
 
                         ;; KLUDGE TODO this is here because shepherd respawns us in a busy loop
                         ((@ (fibers) sleep) 2)
 
                         (ensure-directories/rec bee-user-id bee-group-id #o2770 data-dir)
-                        (ensure-password-file #$(bee-password-file swarm-name) bee-user-id bee-group-id)
+                        (ensure-password-file password-file bee-user-id bee-group-id)
 
                         (let ((eth-address (and #$clef-signer-enable
                                                 (ensure-clef-account swarm-name bee-index))))

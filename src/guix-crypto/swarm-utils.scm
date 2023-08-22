@@ -72,8 +72,9 @@
 (define-public (clef-keystore-directory swarm-name)
   (string-append (clef-data-directory swarm-name) "/keystore"))
 
-(define-public (bee-password-file swarm-name)
-  (string-append (swarm-data-directory swarm-name) "/bee-password"))
+(define-public (bee-password-file swarm-name bee-index)
+  (string-append (swarm-data-directory swarm-name) "/bee-"
+                 (number->string bee-index) ".password"))
 
 (define-public (clef-password-file swarm-name)
   (string-append (swarm-data-directory swarm-name) "/clef-password"))
