@@ -142,6 +142,25 @@
                       #:suffix suffix))
 
 ;;;
+;;; Nimbus
+;;;
+
+;; https://github.com/status-im/nimbus-eth2/releases/download/v23.8.0/nimbus-eth2_Linux_amd64_23.8.0_d014d0a5.tar.gz
+(define-public* (nimbus-release-file-name arch version commit-hash)
+  (string-append "nimbus-eth2_" arch "_" version "_" commit-hash
+                 ".tar.gz"))
+
+(define-public* (nimbus-release-uri arch version commit-hash #:key (suffix ""))
+  (github-release-uri "status-im" "nimbus-eth2" version
+                      (nimbus-release-file-name arch version commit-hash)
+                      #:suffix suffix))
+
+(define-public (guix-system-name->nimbus-system-name system)
+  (match system
+    ("x86_64-linux"      "Linux_amd64")
+    ("aarch64-linux"     "Linux_arm64v8")))
+
+;;;
 ;;; Feather wallet
 ;;;
 

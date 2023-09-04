@@ -255,3 +255,77 @@ work on Guix.")
       (license license:asl2.0)
       (properties
        '((release-monitoring-url . "https://github.com/sigp/lighthouse/releases"))))))
+
+(define-public nimbus-binary
+  (let ((commit-hash "d014d0a5")  ; first 8 digits of the tagged commit's hash
+        (version hashes (read-hashes-file "nimbus-binary")))
+    (package
+      (name "nimbus-binary")
+      (version version)
+      (source
+       (let* ((uri file-name
+                   (nimbus-release-uri
+                    (guix-system-name->nimbus-system-name (%current-system))
+                    version commit-hash)))
+         (origin
+           (method url-fetch)
+           (uri uri)
+           (file-name file-name)
+           (sha256 (base32 (or (assoc-ref hashes (%current-system))
+                               (unsupported-arch name (%current-system))))))))
+      (build-system binary-build-system)
+      (arguments
+       (let* ((binaries '("nimbus_beacon_node"
+                          "nimbus_validator_client"))
+              (versioned-names (map (lambda (binary)
+                                      (string-append binary "-" version))
+                                    binaries)))
+         (list
+          #:install-plan `'(,@(map (lambda (name versioned-name)
+                                     (list (string-append "build/" name)
+                                           (string-append "bin/"   versioned-name)))
+                                   binaries versioned-names))
+          #:strip-binaries? #false      ; The less we modify, the better.
+          ;; TODO investigate: without the patchelf for glibc the binary seems
+          ;; to run fine (check phase finishes), but then after that the
+          ;; runpath validation phase fails?!
+          #:patchelf-plan (let ((libs '("glibc")))
+                            `'(,@(map (lambda (binary)
+                                        (list (string-append "build/" binary)
+                                              libs))
+                                      binaries)))
+          #:phases
+          #~(modify-phases %standard-phases
+              (add-after 'patchelf 'check
+                (lambda* (#:key (tests? #t) #:allow-other-keys)
+                  (when tests?
+                    ;; At the time of this writing binary-build-system does not
+                    ;; support cross builds. When it will, it will hopefully
+                    ;; declare #:tests #f and this will keep working in cross
+                    ;; builds.
+                    (map (lambda (binary)
+                           (invoke (string-append "./build/" binary) "--version"))
+                         '#$binaries))))
+              (add-after 'install 'symlink-binaries
+                (lambda* (#:key outputs #:allow-other-keys)
+                  (let* ((out (assoc-ref outputs "out")))
+                    (with-directory-excursion (string-append out "/bin/")
+                      (map
+                       (lambda (binary versioned-name)
+                         (let ((source versioned-name)
+                               (target binary))
+                           (format #t "~A -> ~A~%" source target)
+                           (symlink source target)))
+                       '#$binaries '#$versioned-names)))))))))
+      (native-inputs (list tar
+                           gzip
+                           patchelf))
+      (inputs (list (list gcc "lib")
+                    glibc))
+      (supported-systems (map first hashes))
+      (home-page "https://nimbus.guide/")
+      (synopsis "Ethereum consensus-layer client, aka a beacon node")
+      (description "The official Nimbus binary release, patched to work on Guix.")
+      (license license:asl2.0)
+      (properties
+       '((release-monitoring-url . "https://github.com/status-im/nimbus-eth2/releases/latest"))))))

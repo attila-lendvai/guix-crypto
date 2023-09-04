@@ -103,6 +103,15 @@
      ,guix-system-name->rust-system-name
      ("x86_64-linux" "aarch64-linux"))
 
+    ("nimbus-binary"
+     ,(add-hash-of-tag-as-third-arg
+       nimbus-release-uri
+       "https://github.com/status-im/nimbus-eth2.git"
+       #:tag-prefix "v")
+     () ; TODO they don't sign their binaries?!
+     ,guix-system-name->nimbus-system-name
+     ("x86_64-linux" "aarch64-linux"))
+
     ("swarm-tools-binary"
      ,swarm-tools/release-uri
      ()
