@@ -440,53 +440,52 @@ a local Gnosis chain node instance, then you can add its name here.")
                                              bee-index))))
 
            (define backup-identity-action
-             (shepherd-action
-              (name 'backup-identity)
-              (documentation "Backs up the Bee node's identity (the statestore,
+             (shepherd-action/bee
+              'backup-identity
+              "Backs up the Bee node's identity (the statestore,
 its wallet when running without clef, and the libp2p and pss keys) into the
-directory specified as the first command line argument.")
-              (procedure
-               (swarm-service-action-gexp
-                service-config
-                #~(cond
-                   ((= 1 (length -args-))
-                    (cond
-                     ((not (directory-exists? (first -args-)))
-                      (format #t "Destination directory '~A' does not exists~%"
-                              (first -args-)))
-                     (else
-                      (let* ((data-dir (bee-data-directory #$swarm-name #$bee-index))
-                             (dest-dir (canonicalize-path (first -args-)))
-                             (file-name (string-append (date->string (current-date) "~1") "-"
-                                                       (gethostname)
-                                                       "-bee-"
-                                                       #$swarm-name "-"
-                                                       #$(number->string bee-index)))
-                             (dest-path (string-append dest-dir "/" file-name ".tgz"))
-                             ;; Let's record the fact that we depend on gzip.
-                             (compressor #$(file-append gzip "/bin/gzip")))
-                        (format #t "Backing up Bee node identity from '~A' to '~A'~%"
-                                data-dir dest-path)
-                        (let ((cmd (cons* #$(file-append tar "/bin/tar")
-                                          "--gzip" "--verbose" "--create"
-                                          "--file" dest-path
-                                          "--directory" data-dir
-                                          "keys/"
-                                          "statestore/"
-                                          (if #$clef-signer-enable
-                                              (error "TODO backing up the Clef key is not yet implemented")
-                                              '()))))
-                          (log.debug "Will run backup cmd: ~S" cmd)
-                          (let* ((status (apply system* cmd))
-                                 (exit-code (status:exit-val status)))
-                            (log.debug "Cmd returned exit code ~S" exit-code)
-                            (if (zero? exit-code)
-                                (format #t "Node identity files have been backed up into '~A'~%"
-                                        dest-path)
-                                (format #t "Node identity backup command failed with exit-code '~S'~%"
-                                        exit-code))))))))
+directory specified as the first command line argument."
+              #~(cond
+                 ((= 1 (length -args-))
+                  (cond
+                   ((not (directory-exists? (first -args-)))
+                    (format #t "Destination directory '~A' does not exists~%"
+                            (first -args-)))
                    (else
-                    (format (current-error-port) "Usage: herd backup-identity bee-mainnet-0 destination-directory.~%")))))))
+                    (let* ((data-dir (bee-data-directory #$swarm-name #$bee-index))
+                           (dest-dir (canonicalize-path (first -args-)))
+                           (file-name (string-append (date->string (current-date) "~1") "-"
+                                                     (gethostname)
+                                                     "-bee-"
+                                                     #$swarm-name "-"
+                                                     #$(number->string bee-index)))
+                           (dest-path (string-append dest-dir "/" file-name ".tgz"))
+                           ;; Let's record the fact that we depend on gzip.
+                           (compressor #$(file-append gzip "/bin/gzip")))
+                      (format #t "Backing up Bee node identity from '~A' to '~A'~%"
+                              data-dir dest-path)
+                      (let ((cmd (cons* #$(file-append tar "/bin/tar")
+                                        "--gzip" "--verbose" "--create"
+                                        "--file" dest-path
+                                        "--directory" data-dir
+                                        "keys/"
+                                        "statestore/"
+                                        (if #$clef-signer-enable
+                                            (error "TODO backing up the Clef key is not yet implemented")
+                                            '()))))
+                        (log.debug "Will run backup cmd: ~S, PATH is ~A" cmd (getenv "PATH"))
+                        (let* (;; system* together with --gzip didn't work
+                               ;; (status (apply system* cmd))
+                               (status (system (string-join cmd " ")))
+                               (exit-code (status:exit-val status)))
+                          (log.debug "Cmd returned exit code ~S" exit-code)
+                          (if (zero? exit-code)
+                              (format #t "Node identity files have been backed up into '~A'~%"
+                                      dest-path)
+                              (format #t "Node identity backup command failed with exit-code '~S'~%"
+                                      exit-code))))))))
+                 (else
+                  (format (current-error-port) "Usage: herd backup-identity bee-mainnet-0 destination-directory.~%")))))
 
            (shepherd-service
             (documentation (simple-format #f "Swarm bee node ~S in swarm ~S."
@@ -727,7 +726,9 @@ number of times, in any random moment."
           (use-modules (srfi srfi-19))
 
           (lambda (-pid- . -args-)
-            (let* ((-path-          #$(file-append coreutils "/bin"))
+            (let* ((-path-          (string-append #$(file-append coreutils "/bin")
+                                                   ":"
+                                                   #$(file-append gzip "/bin")))
                    (-log-dir-       #$(default-log-directory swarm-name)))
               (setenv "PATH" -path-)
               (with-log-directory -log-dir-
