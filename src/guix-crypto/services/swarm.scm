@@ -391,8 +391,7 @@ a local Gnosis chain node instance, then you can add its name here.")
 
 (define (make-shepherd-service/bee bee-index service-config)
   (with-service-gexp-modules '((guix build utils)
-                               (guix-crypto swarm-utils)
-                               (json))
+                               (guix-crypto swarm-utils))
    (match-record service-config <swarm-service-configuration>
        (swarm bee-configuration bee bee-user swarm-group node-count
               shepherd-requirement)
@@ -430,11 +429,8 @@ a local Gnosis chain node instance, then you can add its name here.")
                   #~(display (ensure-clef-account #$swarm-name #$bee-index))
                   ;; TODO maybe we should use an RPC call instead? but that
                   ;; would only work when the node is running.
-                  #~(let* ((filename #$(bee-wallet-file swarm-name bee-index))
-                           (json (call-with-input-file filename
-                                   json->scm))
-                           (address (assoc-ref json "address")))
-                      (display address)))))
+                  #~(let ((filename #$(bee-wallet-file swarm-name bee-index)))
+                      (display (wallet-file-address filename))))))
 
            (define log-file-action
              (shepherd-action/bee
@@ -481,9 +477,14 @@ directory specified as the first command line argument.")
                                               (error "TODO backing up the Clef key is not yet implemented")
                                               '()))))
                           (log.debug "Will run backup cmd: ~S" cmd)
-                          (apply system* cmd))
-                        (format #t "Node identity files have been backed up into '~A'~%"
-                                dest-path)))))
+                          (let* ((status (apply system* cmd))
+                                 (exit-code (status:exit-val status)))
+                            (log.debug "Cmd returned exit code ~S" exit-code)
+                            (if (zero? exit-code)
+                                (format #t "Node identity files have been backed up into '~A'~%"
+                                        dest-path)
+                                (format #t "Node identity backup command failed with exit-code '~S'~%"
+                                        exit-code))))))))
                    (else
                     (format (current-error-port) "Usage: herd backup-identity bee-mainnet-0 destination-directory.~%")))))))
 
@@ -502,8 +503,7 @@ directory specified as the first command line argument.")
                            backup-identity-action))
             (modules (append
                       '((guix-crypto swarm-utils)
-                        (srfi srfi-1)
-                        (json))
+                        (srfi srfi-1))
                       +default-service-modules+))
             (start
              #~(lambda _

@@ -31,6 +31,7 @@
   #:use-module (srfi srfi-26)
   #:use-module (srfi srfi-34)
   #:use-module (srfi srfi-71)
+  #:use-module (json)
   #:use-module (ice-9 control)
   #:use-module (ice-9 format)
   #:use-module (ice-9 match)
@@ -265,6 +266,12 @@
                    (loop)))))
            (const #false)))))
     (const #false)))
+
+(define-public* (wallet-file-address filename)
+  (let* ((json (call-with-input-file filename
+                 json->scm))
+         (address (assoc-ref json "address")))
+    address))
 
 (define-public* (ensure-clef-account swarm-name bee-index)
   (call-with-port (socket PF_UNIX SOCK_STREAM 0)
