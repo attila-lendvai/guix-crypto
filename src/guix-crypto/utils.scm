@@ -255,8 +255,8 @@
                 "< /dev/urandom tr -dc _A-Z-a-z-0-9 2> /dev/null | head -c32 >'"
                 password-file "'")))
       (unless (zero? (system cmd))
-        (error "Failed to generate password file" password-file))
-      (chmod password-file #o400)))
+        (error "Failed to generate password file" password-file))))
+  (chmod password-file #o400)
   (chown password-file
          (or (ensure-uid uid) -1)
          (or (ensure-gid gid) -1)))
