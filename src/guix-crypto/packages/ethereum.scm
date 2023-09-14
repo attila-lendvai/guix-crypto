@@ -42,7 +42,7 @@
   #:use-module (srfi srfi-71))
 
 (define-public geth-binary
-  (let ((commit-hash "bed84606")  ; first 8 digits of the tagged commit's hash
+  (let ((commit-hash "7371b381")  ; first 8 digits of the tagged commit's hash
         (version hashes (read-hashes-file "geth-binary")))
     (package
       (name "geth-binary")
