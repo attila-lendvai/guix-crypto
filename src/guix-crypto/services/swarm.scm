@@ -169,6 +169,7 @@ symbols: @code{'silent}, @code{'error}, @code{'warn}, @code{'info}, \
                          "A blockchain node endpoint to connect to for resolving ENS names.
 Normally it should be a node connected to the Ethereum mainnet.")
   (blockchain-rpc-endpoint         string "A blockchain node endpoint to connect to.")
+  (swap-enable           maybe-boolean "")
   (swap-initial-deposit  maybe-non-negative-integer "")
 
   (mainnet               (boolean #true) "")
