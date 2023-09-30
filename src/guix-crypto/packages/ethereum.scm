@@ -102,7 +102,7 @@ censorship, fraud or third party interference.")
        '((release-monitoring-url . "https://github.com/ethereum/go-ethereum/releases"))))))
 
 (define-public nethermind-binary
-  (let ((commit-hash "d06ec791")       ; first 8 digits of the tagged commit's hash
+  (let ((commit-hash "bb9b72c0")       ; first 8 digits of the tagged commit's hash
         (version hashes (read-hashes-file "nethermind-binary")))
     (package
       (name "nethermind-binary")
@@ -127,18 +127,18 @@ censorship, fraud or third party interference.")
           ;; We install the binaries into the share-dir, so that they can find
           ;; the necessary files relative to the binary's path. They are
           ;; symlinked into the bin/ dir in a separate phase below.
-          #:install-plan `'(("Nethermind.Cli"      ,share-dir)
-                            ("Nethermind.Launcher" ,share-dir)
-                            ("Nethermind.Runner"   ,share-dir)
+          #:install-plan `'(("nethermind-cli"      ,share-dir)
+                            ("nethermind-launcher" ,share-dir)
+                            ("nethermind"          ,share-dir)
                             ("NLog.config"         ,share-dir)
                             ("plugins"             ,share-dir)
                             ("configs"             ,share-dir))
           #:strip-binaries? #false      ; The less we modify, the better.
           #:patchelf-plan (let ((libs '("glibc" "gcc" "zlib" "icu4c"
                                         "rocksdb" "openssl" "snappy")))
-                            `'(("Nethermind.Cli"      ,libs)
-                               ("Nethermind.Launcher" ,libs)
-                               ("Nethermind.Runner"   ,libs)))
+                            `'(("nethermind-cli"      ,libs)
+                               ("nethermind-launcher" ,libs)
+                               ("nethermind"          ,libs)))
           #:phases
           #~(modify-phases %standard-phases
               (replace 'unpack
@@ -172,9 +172,9 @@ censorship, fraud or third party interference.")
                              (target (string-append out "/bin/" binary)))
                          (format #t "~A -> ~A~%" source target)
                          (symlink source target)))
-                     '("Nethermind.Cli"
-                       "Nethermind.Launcher"
-                       "Nethermind.Runner")))))
+                     '("nethermind-cli"
+                       "nethermind-launcher"
+                       "nethermind")))))
               ;; alternatively:
               ;; (add-after 'install 'wrap
               ;;   (lambda* (#:key outputs #:allow-other-keys)

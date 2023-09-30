@@ -391,7 +391,7 @@ the chain).")
 
                      (let ((cmd (append
                                  '#$(cons*
-                                     (file-append nethermind "/bin/Nethermind.Runner")
+                                     (file-append nethermind "/bin/nethermind")
                                      (nethermind-configuration->cmd-arguments
                                       nethermind-configuration))
                                  ;; Allow `herd start nethermind-srv --more-args-for-nethermind
