@@ -62,7 +62,9 @@
             bee-configuration
             bee-configuration?
             swarm-service-type
-            swarm-service))
+            swarm-service
+            swarm/mainnet
+            swarm/testnet))
 
 (define +db-open-files-limit/default+ 4096)
 
@@ -126,7 +128,7 @@
    "Base number for the debug api ports of the Bee nodes. Defaults to 1800 \
 for @code{mainnet} and 2100 for @code{testnet}, otherwise it must be specified."))
 
-(define-public swarm/mainnet
+(define swarm/mainnet
   (swarm
    (name                "mainnet")
    (network-id          1)
@@ -135,7 +137,7 @@ for @code{mainnet} and 2100 for @code{testnet}, otherwise it must be specified."
    (api-port-base       1700)
    (debug-api-port-base 1800)))
 
-(define-public swarm/testnet
+(define swarm/testnet
   (swarm
    (name                "testnet")
    (network-id          10)
