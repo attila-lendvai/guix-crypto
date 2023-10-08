@@ -171,7 +171,6 @@
        ;;(shepherd-requirement '(gnosis))
        (bee-configuration
         (bee-configuration
-         (clef-signer-enable   #false)
          (resolver-options               "https://mainnet.infura.io/v3/7216e0c44a0c47d99ca6de1c82b5d7b9")
          ;;(blockchain-rpc-endpoint        "/var/lib/openethereum/gnosis/gnosis.ipc")
          ;;(blockchain-rpc-endpoint        "https://gno.getblock.io/30f88254-c3fb-4188-a991-060f50085ecb/mainnet/")
