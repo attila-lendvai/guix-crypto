@@ -44,6 +44,7 @@
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
   #:use-module (gnu packages certs)
+  #:use-module (gnu packages guile-xyz)
   #:use-module (gnu packages imagemagick)
   #:use-module (gnu packages networking)
   #:use-module (gnu packages ocr)
@@ -62,21 +63,42 @@
   #:export (run-basic-test
             *test-swarm-starting*))
 
-(define *use-custom-shepherd* #true)
-(define *parent-shepherd-package* shepherd-0.9)
+(define *use-custom-shepherd* #false)
+(define *parent-shepherd-package* shepherd-0.10)
 (define *custom-shepherd-dir* "/home/alendvai/workspace/guix/shepherd")
-(define *custom-shepherd-only-from-commits* #false)
+(define *custom-shepherd-only-from-commits* #true)
+
+;; (define-public custom-guile-fibers
+;;   (package
+;;     (inherit guile-fibers-next)
+;;     (version "dev")
+;;     (arguments
+;;      `(;;#:tests? #false
+;;        ,@(package-arguments guile-fibers-next)))
+;;     (source (let ((dir "/home/alendvai/workspace/guix/fibers"))
+;;               (if #true
+;;                   (git-checkout
+;;                    (url (string-append "file://" dir))
+;;                    (branch "bit-count")
+;;                    ;;(commit "a281ebfd4466a6925e264c303201b8dc44d33cb4")
+;;                    )
+;;                   (local-file dir
+;;                               #:recursive? #t
+;;                               #:select? (git-predicate dir)))))))
 
 (define custom-shepherd
   (package
     (inherit *parent-shepherd-package*)
     (version "dev")
+    ;; (inputs
+    ;;  (modify-inputs (package-inputs *parent-shepherd-package*)
+    ;;    (replace "guile-fibers" custom-guile-fibers)))
     (source
      (if *custom-shepherd-only-from-commits*
          (git-checkout
           (url (string-append "file://" *custom-shepherd-dir*))
-          (branch "attila")             ; not optional
-          ;;(commit "607f38e5104b9b03e020cd071535a840b4168e11")
+          (branch "attila")
+          ;;(commit "a281ebfd4466a6925e264c303201b8dc44d33cb4")
           )
          (local-file *custom-shepherd-dir*
                      #:recursive? #t
@@ -181,7 +203,7 @@
      (kernel-arguments '())
      (packages (append
                 (list
-                 netcat-openbsd
+                 ;; netcat-openbsd
                  socat
                  ;; for HTTPS access
                  nss-certs
@@ -197,11 +219,6 @@
                          initialization
                          root-password
                          desktop?)
-
-  (define guix&co
-    (match (package-transitive-propagated-inputs guix)
-      (((labels packages) ...)
-       (cons guix packages))))
 
   (define test-expression
     (with-imported-modules '((gnu build marionette)

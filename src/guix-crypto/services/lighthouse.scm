@@ -18,6 +18,9 @@
 ;; TODO delme
 ;; /gnu/store/jkxm33y87b0p6ih4hp0r5h5jjlr1ah34-lighthouse-binary-3.4.0/bin/lighthouse --network gnosis beacon_node --datadir=/tmp/lighthouse --http --execution-endpoint http://localhost:8551 --execution-jwt /tmp/jwt.hex --checkpoint-sync-url "https://checkpoint.gnosischain.com"
 
+;; TODO port this also to full user-account objects to properly set the
+;; supplementary-groups.
+
 (define-module (guix-crypto services lighthouse)
   #:use-module (guix-crypto utils)
   #:use-module (guix-crypto service-utils)

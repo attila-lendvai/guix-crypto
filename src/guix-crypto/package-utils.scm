@@ -24,6 +24,8 @@
   #:use-module (ice-9 match)
   #:export (read-hashes-file))
 
+;; TODO double check that we can't just use INCLUDE instead of this.
+;; it only fails when guix pull'ing the change.
 (define (%read-module-relative-file module filename)
   (with-input-from-file
       (or (search-path %load-path

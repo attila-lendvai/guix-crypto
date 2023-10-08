@@ -267,7 +267,7 @@ the chain).")
   (user-account          user-account
    "USER-ACCOUNT object (as per (gnu system shadow)) specifying the unix user/group the service process should run under.")
   (nethermind-configuration nethermind-configuration
-   "Configuration for the Nethermind binary."))
+   "Config object to generate the startup arguments for the Nethermind binary."))
 
 (define (nethermind-configuration->cmd-arguments config)
   (fold (lambda (field result)
@@ -394,7 +394,7 @@ the chain).")
                                      (file-append nethermind "/bin/nethermind")
                                      (nethermind-configuration->cmd-arguments
                                       nethermind-configuration))
-                                 ;; Allow `herd start nethermind-srv --more-args-for-nethermind
+                                 ;; Allow `herd start nethermind-srv -- --some-more-args-for-nethermind
                                  args)))
 
                        (log.debug "Will exec ~S" cmd)
