@@ -23,6 +23,10 @@
 ;; - add respawn delay. test scenario: broken swap endpoint url makes it respawn in a busy loop
 ;;   - maybe add a respawn-delay to respawn-service in shepherd
 
+;; BUGS:
+;; - chown the bee-0.password file?
+;; - herd backup-identity bee-0 creates an empty tgz
+
 (define-module (guix-crypto services swarm)
   #:use-module (guix-crypto utils)
   #:use-module (guix-crypto swarm-utils)
@@ -335,7 +339,7 @@ first command line argument."
                                        "--directory" data-dir
                                        "keys/"
                                        "statestore/")))
-                        (log.debug "Will run backup cmd: ~S, PATH is ~A" cmd (getenv "PATH"))
+                        (log.debug "Will run backup cmd: ~S, PATH is ~A, uid is ~A" cmd (getenv "PATH") (getuid))
                         (let* ( ;; system* together with --gzip didn't work
                                ;; (status (apply system* cmd))
                                (status (system (string-join cmd " ")))
