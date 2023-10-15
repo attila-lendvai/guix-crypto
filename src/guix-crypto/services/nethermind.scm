@@ -410,7 +410,7 @@ the chain).")
                                 ;; the logging system initialization.
                                 ;; #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
                                 #:log-file "/dev/null"
-                                #:resource-limits `((nofile 8192 8192))
+                                #:resource-limits `((nofile 65536 65536))
                                 #:environment-variables
                                 (append
                                  (list (string-append "HOME=" #$datadir)
