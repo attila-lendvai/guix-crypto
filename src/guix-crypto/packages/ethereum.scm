@@ -20,6 +20,7 @@
   #:use-module (guix-crypto package-utils)
   #:use-module (guix diagnostics)
   #:use-module (guix gexp)
+  #:use-module (guix git-download)
   #:use-module (guix ui)
   #:use-module (guix download)
   #:use-module ((guix licenses) #:prefix license:)
@@ -100,6 +101,30 @@ censorship, fraud or third party interference.")
       (license license:gpl3+)
       (properties
        '((release-monitoring-url . "https://github.com/ethereum/go-ethereum/releases"))))))
+
+;; This is just the rocksdb package from Guix proper with an updated version
+;; and sha256. It's not strictly necessary, but hopefully a nice performance
+;; upgrade and/or eliminates potential bugs.
+;; TODO Delme when rocksdb gets updated in Guix.
+(define-public rocksdb-for-nethermind
+  (package/inherit rocksdb
+    (version "8.6.7")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/facebook/rocksdb")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name "rocksdb" version))
+              (sha256
+               (base32
+                "1gdi35pfdh3iak126ad31k7718gjbn2nv0lgw2hi7p61p8w5q9s8"))
+              (modules '((guix build utils)))
+              (snippet
+               '(begin
+                  ;; TODO: unbundle gtest.
+                  (delete-file "build_tools/gnu_parallel")
+                  (substitute* "Makefile"
+                    (("build_tools/gnu_parallel") "parallel"))))))))
 
 (define-public nethermind-binary
   (let ((commit-hash "bb9b72c0")       ; first 8 digits of the tagged commit's hash
@@ -189,7 +214,7 @@ censorship, fraud or third party interference.")
                     glibc
                     icu4c
                     openssl
-                    rocksdb
+                    rocksdb-for-nethermind
                     snappy
                     zlib))
       (supported-systems (map first hashes))
