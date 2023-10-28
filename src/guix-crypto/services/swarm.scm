@@ -333,23 +333,35 @@ first command line argument."
                       (format #t "Backing up Bee node identity from '~A' to '~A'~%"
                               data-dir dest-path)
                       ;; TODO add a blacklist instead of the current whitelist
-                      (let ((cmd (list #$(file-append tar "/bin/tar")
-                                       "--gzip" "--verbose" "--create"
-                                       "--file" dest-path
-                                       "--directory" data-dir
-                                       "keys/"
-                                       "statestore/")))
-                        (log.debug "Will run backup cmd: ~S, PATH is ~A, uid is ~A" cmd (getenv "PATH") (getuid))
-                        (let* ( ;; system* together with --gzip didn't work
-                               ;; (status (apply system* cmd))
-                               (status (system (string-join cmd " ")))
+                      ;; TODO add the password file? and print a warning?
+                      (let* ((cmd (list #$(file-append tar "/bin/tar")
+                                        "--verbose"
+                                        "--create"
+                                        ;; "--file" dest-path
+                                        "--directory" data-dir
+                                        "keys/"
+                                        "statestore/"))
+                             (cmd-string (string-append
+                                          "install --mode=600 <("
+                                          (string-join cmd " ")
+                                          " | " compressor ") " dest-path)))
+                        (log.debug "Will run now: ls -l /bin/sh") ; TODO delme
+                        (system "ls -l /bin/sh") ; TODO delme
+                        (log.debug "Will run backup cmd: ~S, PATH is ~A, uid is ~A, $SHELL is ~S" cmd-string (getenv "PATH") (getuid) (getenv "SHELL"))
+                        ;; NOTE SYSTEM* together with --gzip didn't work (status (apply system* cmd))
+                        ;; NOTE SYSTEM is rebound in shepherd with SPAWN-SHELL-COMMAND,
+                        ;; and it's not fully compatible: (system) errors instead of
+                        ;; returning a boolean.
+                        (let* ((status (system cmd-string))
                                (exit-code (status:exit-val status)))
                           (log.debug "Cmd returned exit code ~S" exit-code)
                           (if (zero? exit-code)
                               (format #t "Node identity files have been backed up into '~A'~%"
                                       dest-path)
-                              (format #t "Node identity backup command failed with exit-code '~S'~%"
-                                      exit-code))))))))
+                              (begin
+                                (format #t "Node identity backup command failed with exit-code '~S'~%"
+                                        exit-code)
+                                (false-if-exception (delete-file dest-path))))))))))
                  (else
                   (format (current-error-port) "Usage: herd backup-identity bee-mainnet-0 destination-directory.~%")))))
 
