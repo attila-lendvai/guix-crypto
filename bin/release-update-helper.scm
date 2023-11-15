@@ -16,6 +16,7 @@
 
 (use-modules
  (guix build utils)
+ (guix memoization)
  (guix-crypto utils)
  (guix-crypto package-utils)
  (guix-crypto script-utils)
@@ -46,11 +47,24 @@
       (waitpid pid)
       output)))
 
-(define* (hash-of-tag repo-uri version #:key (tag-prefix ""))
-  (let* ((git-cmd (format #f "git ls-remote ~A | grep refs/tags/~A~A | cut -f1"
+(define* (hash-of-tag/impl repo-uri version #:key (tag-prefix ""))
+  ;; TODO ???
+  ;; grep refs/heads/release/~A~A ; for nethermind only?
+  ;; otherwise: grep refs/tags/~A~A
+  (let* (;;(git-cmd (format #f "git ls-remote ~A | grep refs/heads/release/~A~A | cut -f1"
+         ;;                 repo-uri tag-prefix version))
+         (git-cmd (format #f "git ls-remote ~A | grep refs/tags/~A~A | cut -f1"
                           repo-uri tag-prefix version))
-         (hash (spawn-and-slurp-output "bash" "-c" git-cmd)))
+         (hash (string-trim-right
+                (spawn-and-slurp-output "bash" "-c" git-cmd)
+                #\newline)))
+    (format #t "commit hash '~A'~%" hash)
+    (unless (equal? (string-length hash) 40)
+      (error "hash-of-tag failed, git-cmd was" git-cmd))
     hash))
+
+(define hash-of-tag
+  (memoize hash-of-tag/impl))
 
 (define* (add-hash-of-tag-as-third-arg fn repo-uri #:key (tag-prefix ""))
   (lambda args
