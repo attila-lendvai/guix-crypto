@@ -127,7 +127,7 @@ censorship, fraud or third party interference.")
                     (("build_tools/gnu_parallel") "parallel"))))))))
 
 (define-public nethermind-binary
-  (let ((commit-hash "ae444a4b")       ; first 8 digits of the tagged commit's hash
+  (let ((commit-hash "bcd3b8ae")       ; first 8 digits of the tagged commit's hash
         (version hashes (read-hashes-file "nethermind-binary")))
     (package
       (name "nethermind-binary")
