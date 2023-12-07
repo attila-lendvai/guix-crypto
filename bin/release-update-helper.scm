@@ -70,7 +70,6 @@
   (lambda args
     (let* ((version (second args))
            (hash (hash-of-tag repo-uri version #:tag-prefix tag-prefix)))
-      ;;(pk "extracted hash" hash "git-cmd" git-cmd)
       (apply fn (append (list-head args 2)
                         (list (substring hash 0 8))
                         (list-tail args 2))))))
@@ -148,7 +147,7 @@
 (define (download-uri-to-file uri file)
   ;; TODO maybe use guile-curl instead:
   ;; https://github.com/spk121/guile-curl
-  (format #t "Downloading file ~A~%  from ~A~%" file uri)
+  (format #t "Downloading to file ~A~%  from ~A~%" file uri)
   (let ((status (system (string-append "curl --fail --continue-at - --location "
                                        uri " --output " file))))
     (unless (zero? (status:exit-val status))
@@ -159,7 +158,7 @@
       (exit EXIT_FAILURE))))
 
 (define* (download-and-verify-arch arch uri-factory-args)
-  (format #t "~A\t\t" arch)
+  (format #t "~A\n\n" arch)
   (let* ((fingerprints (second (*package-db-entry*)))
          (uri-factory  (first  (*package-db-entry*)))
          (data-file    (tmp-file arch)))
