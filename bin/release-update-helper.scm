@@ -51,9 +51,9 @@
   ;; TODO ???
   ;; grep refs/heads/release/~A~A ; for nethermind only?
   ;; otherwise: grep refs/tags/~A~A
-  (let* (;;(git-cmd (format #f "git ls-remote ~A | grep refs/heads/release/~A~A | cut -f1"
+  (let* (;;(git-cmd (format #f "git ls-remote ~A | grep 'refs/heads/release/~A~A$' | cut -f1"
          ;;                 repo-uri tag-prefix version))
-         (git-cmd (format #f "git ls-remote ~A | grep refs/tags/~A~A | cut -f1"
+         (git-cmd (format #f "git ls-remote ~A | grep 'refs/tags/~A~A$' | cut -f1"
                           repo-uri tag-prefix version))
          (hash (string-trim-right
                 (spawn-and-slurp-output "bash" "-c" git-cmd)
