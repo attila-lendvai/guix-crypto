@@ -349,19 +349,19 @@ the chain).")
                      (ensure-directories 0 "nethermind" #o2771
                                          "/var/log/nethermind")
 
-                     (log.debug "Nethermind service is starting up, log initialized, args are ~A" args)
-                     (log.dribble "PATH is ~S" (getenv "PATH"))
-                     (log.dribble "SHELL is ~S" (getenv "SHELL"))
+                     (log2.debug "Nethermind service is starting up, log initialized, args are ~A" args)
+                     (log2.dribble "PATH is ~S" (getenv "PATH"))
+                     (log2.dribble "SHELL is ~S" (getenv "SHELL"))
 
                      (ensure-directories 0 "nethermind" #o2771
                                          "/var/lib/nethermind")
 
-                     (log.dribble "/var/lib/nethermind initialized")
+                     (log2.dribble "/var/lib/nethermind initialized")
 
                      (ensure-directories/rec user group #o2751
                                              #$datadir)
 
-                     (log.dribble "Nethermind data dir is initialized (~S)" #$datadir)
+                     (log2.dribble "Nethermind data dir is initialized (~S)" #$datadir)
 
                      ;; Ensure we have a JWT secret. It should be a 64 digit hexadecimal number.
                      ;; openssl rand -hex 32 | tr -d "\n"
@@ -374,9 +374,9 @@ the chain).")
                                   password-file
                                   "\"")))
                        (if (file-exists? password-file)
-                           (log.dribble "JWT secret already exists in ~S" password-file)
+                           (log2.dribble "JWT secret already exists in ~S" password-file)
                            (begin
-                             (log.debug "Generating JWT secret into ~S" password-file)
+                             (log2.debug "Generating JWT secret into ~S" password-file)
                              (unless (zero? (system cmd))
                                (error "Failed to generate JWT secret" password-file))))
                        (chmod password-file #o440)
@@ -392,7 +392,7 @@ the chain).")
                                  ;; Allow `herd start nethermind-srv -- --some-more-args-for-nethermind
                                  args)))
 
-                       (log.debug "Will exec ~S" cmd)
+                       (log2.debug "Will exec ~S" cmd)
 
                        (let* ((forkexec
                                (make-forkexec-constructor

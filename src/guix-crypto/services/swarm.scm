@@ -344,16 +344,16 @@ first command line argument."
                                           "install --mode=600 <("
                                           (string-join cmd " ")
                                           " | " compressor ") " dest-path)))
-                        (log.debug "Will run now: ls -l /bin/sh") ; TODO delme
+                        (log2.debug "Will run now: ls -l /bin/sh") ; TODO delme
                         (system "ls -l /bin/sh") ; TODO delme
-                        (log.debug "Will run backup cmd: ~S, PATH is ~A, uid is ~A, $SHELL is ~S" cmd-string (getenv "PATH") (getuid) (getenv "SHELL"))
+                        (log2.debug "Will run backup cmd: ~S, PATH is ~A, uid is ~A, $SHELL is ~S" cmd-string (getenv "PATH") (getuid) (getenv "SHELL"))
                         ;; NOTE SYSTEM* together with --gzip didn't work (status (apply system* cmd))
                         ;; NOTE SYSTEM is rebound in shepherd with SPAWN-SHELL-COMMAND,
                         ;; and it's not fully compatible: (system) errors instead of
                         ;; returning a boolean.
                         (let* ((status (system cmd-string))
                                (exit-code (status:exit-val status)))
-                          (log.debug "Cmd returned exit code ~S" exit-code)
+                          (log2.debug "Cmd returned exit code ~S" exit-code)
                           (if (zero? exit-code)
                               (format #t "Node identity files have been backed up into '~A'~%"
                                       dest-path)
@@ -388,7 +388,7 @@ first command line argument."
                             (bee-index  '#$bee-index)
                             (data-dir   '#$data-dir)
                             (password-file '#$password-file))
-                        (log.debug "Bee service is starting")
+                        (log2.debug "Bee service is starting")
 
                         ;; KLUDGE TODO this is here because shepherd respawns us in a busy loop
                         ((@ (fibers) sleep) 2)
@@ -401,7 +401,7 @@ first command line argument."
                             (let ((cmd (list #$(file-append bee "/bin/bee")
                                              "--config" #$config-file
                                              action)))
-                              (log.dribble "About to spawn Bee, cmd is: ~S" cmd)
+                              (log2.dribble "About to spawn Bee, cmd is: ~S" cmd)
                               (fork+exec-command
                                cmd
                                #:user '#$(user-account-name bee-user)
@@ -438,10 +438,10 @@ first command line argument."
                           ;; When first started, call `bee init` for this bee
                           ;; instance.
                           (unless (bee-already-initialized?)
-                            (log.debug "Invoking `bee init` for bee-index ~S in swarm ~S" bee-index swarm-name)
+                            (log2.debug "Invoking `bee init` for bee-index ~S in swarm ~S" bee-index swarm-name)
                             (wait-for-pid
                              (spawn-bee* "init"))
-                            (log.dribble "`bee init` finished for bee-index ~S in swarm ~S" bee-index swarm-name))
+                            (log2.dribble "`bee init` finished for bee-index ~S in swarm ~S" bee-index swarm-name))
 
                           ;; Due to staged compilation, we cannot add the node's
                           ;; eth address to the config bee file, because it only
@@ -497,12 +497,12 @@ number of times, in any random moment."
                 (close-port (open-file path "a"))
                 (chmod path #o664))
 
-              (log.dribble "A SWARM-SERVICE-START-GEXP is running for swarm ~S on Guile version ~S" swarm-name (version))
+              (log2.dribble "A SWARM-SERVICE-START-GEXP is running for swarm ~S on Guile version ~S" swarm-name (version))
 
               (let ((dir #$(swarm-data-directory swarm-name)))
                 ;; The data dir is visible to everyone.
                 (ensure-directories 0 swarm-group #o2770 dir)
-                (log.debug "Ensured directory ~S" dir))
+                (log2.debug "Ensured directory ~S" dir))
 
               #$body-gexp))))))
 

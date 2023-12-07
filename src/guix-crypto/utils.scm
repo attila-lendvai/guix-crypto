@@ -105,7 +105,7 @@
         (false-if-exception (display-backtrace (make-stack #t) port))))
     (string-append basedir "/service.log")))
 
-(define-public (log.debug format-string . args)
+(define-public (log2.debug format-string . args)
   ;; WITH-OUTPUT-TO-FILE doesn't work here, because we need to
   ;; append, and it overwrites.
   (call-with-error-handling
@@ -133,35 +133,35 @@
   (values))
 
 ;; TODO handle the categories properly...
-(define-public (log.dribble . args)
+(define-public (log2.dribble . args)
   ;; NOTE dribble logs may contain sensitive information. only enable it while
   ;; debugging.
-  ;; (apply log.debug args)
+  ;; (apply log2.debug args)
   (values))
 
-(define-public (log.warn . args)
-  (apply log.debug args))
+(define-public (log2.warn . args)
+  (apply log2.debug args))
 
-(define-public (log.info . args)
-  (apply log.debug args))
+(define-public (log2.info . args)
+  (apply log2.debug args))
 
-(define-public (log.error . args)
-  (apply log.debug args))
+(define-public (log2.error . args)
+  (apply log2.debug args))
 
-(define-public (log.fatal . args)
-  (apply log.debug args))
+(define-public (log2.fatal . args)
+  (apply log2.debug args))
 
 ;;;
 ;;; Shell and file stuff
 ;;;
 (define-public (invoke-as-user pw thunk)
-  (log.dribble "INVOKE-AS-USER called with pw ~S" pw)
+  (log2.dribble "INVOKE-AS-USER called with pw ~S" pw)
   (let ((pid (primitive-fork)))
     (if (zero? pid)
         (dynamic-wind
           (const #t)
           (lambda ()
-            (log.dribble "INVOKE-AS-USER is inside the fork")
+            (log2.dribble "INVOKE-AS-USER is inside the fork")
             ;; Note that we can't log after the SETGID, because the file might
             ;; be read-only for us.
             (setgid (passwd:gid pw))
@@ -171,19 +171,19 @@
             (umask #o007)
             (with-exception-handler
                 (lambda (e)
-                  (log.error "INVOKE-AS-USER thunk threw an error: ~A" e))
+                  (log2.error "INVOKE-AS-USER thunk threw an error: ~A" e))
               thunk)
             (primitive-exit 0))
           (lambda ()
-            (log.dribble "INVOKE-AS-USER is exiting the fork with an error")
+            (log2.dribble "INVOKE-AS-USER is exiting the fork with an error")
             ;; Exit with a non-zero status code if an exception is thrown.
             (primitive-exit 1)))
         (begin
-          (log.dribble "INVOKE-AS-USER is waiting for the fork")
+          (log2.dribble "INVOKE-AS-USER is waiting for the fork")
           (let ((exit-code (cdr (waitpid pid))))
-            (log.dribble "INVOKE-AS-USER fork has finished with exit-code ~S" exit-code)
+            (log2.dribble "INVOKE-AS-USER fork has finished with exit-code ~S" exit-code)
             (unless (zero? exit-code)
-              (log.error "INVOKE-AS-USER has exited with code ~S" pw exit-code)
+              (log2.error "INVOKE-AS-USER has exited with code ~S" pw exit-code)
               (error "INVOKE-AS-USER failed for" pw)))))))
 
 (define-public (read-file-to-string path)
@@ -252,9 +252,9 @@
       gid))
 
 (define-public (ensure-password-file password-file uid gid)
-  (log.dribble "ENSURE-PASSWORD-FILE for ~S" password-file)
+  (log2.dribble "ENSURE-PASSWORD-FILE for ~S" password-file)
   (unless (file-exists? password-file)
-    (log.debug "Generating password file ~S" password-file)
+    (log2.debug "Generating password file ~S" password-file)
     (let ((cmd (string-append
                 "< /dev/urandom tr -dc _A-Z-a-z-0-9 2> /dev/null | head -c32 >'"
                 password-file "'")))
@@ -307,7 +307,7 @@
     (while
         (begin
           (format #t "Waiting for the file ~S to show up; ~F secs passed.~%" path time-passed)
-          (log.debug "Waiting for the file ~S to show up; ~F secs passed." path time-passed)
+          (log2.debug "Waiting for the file ~S to show up; ~F secs passed." path time-passed)
           ((@ (fibers) sleep) 1)
           (set! time-passed (- (get-monotonic-time) start))
           (set! pid-pair    (false-if-exception (waitpid pid WNOHANG)))
@@ -317,7 +317,7 @@
                  (not child-exited?)
                  (not (file-exists? path))))))
     ;; not very useful because of the sleep 1... (format #t "File showed up after ~F secs.~%" time-passed)
-    (log.debug "WAIT-FOR-FILE for ~S is exiting after ~F secs." path time-passed)
+    (log2.debug "WAIT-FOR-FILE for ~S is exiting after ~F secs." path time-passed)
     (values)))
 
 (define-public* (wait-for-pid pid #:optional (timeout 60))
@@ -326,7 +326,7 @@
         (pid-pair #f))
     (while
         (begin
-          (log.debug "WAIT-FOR-PID for child with pid ~S to exit; ~F secs passed." pid time-passed)
+          (log2.debug "WAIT-FOR-PID for child with pid ~S to exit; ~F secs passed." pid time-passed)
           ((@ (fibers) sleep) 1)
           (set! time-passed (- (get-monotonic-time) start))
           (set! pid-pair    (false-if-exception (waitpid pid WNOHANG)))
@@ -335,13 +335,13 @@
             (and (< time-passed timeout)
                  (not child-exited?)))))
     ;; not very useful because of the sleep 1... (format #t "Child exited after ~F secs.~%" time-passed)
-    (log.debug "WAIT-FOR-PID for ~S is exiting after ~F secs." pid time-passed)
+    (log2.debug "WAIT-FOR-PID for ~S is exiting after ~F secs." pid time-passed)
     (values)))
 
 (define-public* (ensure-ipc-file-permissions pid path #:optional (perms #o660))
   (wait-for-file pid path)
   (if (file-exists? path)
       (begin
-        (log.debug "Setting permissions of file '~S' to #o~O" path perms)
+        (log2.debug "Setting permissions of file '~S' to #o~O" path perms)
         (chmod path perms))
-      (log.error "Unexpected outcome while waiting for file '~S'; pid is ~S" path pid)))
+      (log2.error "Unexpected outcome while waiting for file '~S'; pid is ~S" path pid)))
