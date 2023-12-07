@@ -110,8 +110,7 @@
 (define serialize-non-negative-integer serialize-field)
 (define serialize-verbosity-value serialize-field)
 (define (serialize-raw-configuration-string field value)
-  (when (maybe-value-set? value)
-    (display value)))
+  (display value))
 
 (define raw-configuration-string? maybe-string?)
 
