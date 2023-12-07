@@ -82,6 +82,7 @@
     (throw 'assertion-failure 'exp)))
 
 (define-public +root-environment+
+  ;; TODO maybe? PATH=/var/run/current-system/...
   '("LC_ALL=en_US.utf8"))
 
 ;;;
@@ -145,6 +146,9 @@
   (apply log.debug args))
 
 (define-public (log.error . args)
+  (apply log.debug args))
+
+(define-public (log.fatal . args)
   (apply log.debug args))
 
 ;;;

@@ -216,6 +216,12 @@
 
 (define-public* (nethermind-release-uri arch version commit #:key (suffix ""))
   (let ((file-name (nethermind-release-file-name arch version commit #:suffix suffix)))
+    ;; TODO which one?
+    #;(values (string-append "https://github.com/NethermindEth/nethermind/releases/download/"
+                           version
+                           "/"
+                           file-name)
+            file-name)
     (values (string-append "https://nethdev.blob.core.windows.net/builds/"
                            file-name)
             file-name)))

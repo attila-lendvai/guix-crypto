@@ -375,6 +375,8 @@ first command line argument."
                            log-file-action
                            (shepherd-configuration-action config-file)
                            backup-identity-action))
+            ;; TODO once the patch has reached shepherd
+            ;; (respawn-limit '(5 . 30)) ; disable after 5 restarts in 30 secs
             (modules (append
                       '((guix-crypto swarm-utils)
                         (srfi srfi-1))
