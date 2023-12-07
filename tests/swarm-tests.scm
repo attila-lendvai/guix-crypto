@@ -20,6 +20,7 @@
 ;; $(./pre-inst-env guix system --no-graphic vm --share=$HOME/workspace/guix/var-lib-of-guest-vm=/var/lib ~/workspace/guix/guix-crypto/tests/swarm-tests.scm) -m 2048
 
 (define-module (swarm-tests)
+  #:use-module (shepherd-package) ; from a checkout of the shepherd git repo
   #:use-module (guix-crypto utils)
   #:use-module (guix-crypto service-utils)
   #:use-module (guix-crypto packages ethereum)
@@ -63,8 +64,9 @@
   #:export (run-basic-test
             *test-swarm-starting*))
 
-(define *use-custom-shepherd* #false)
-(define *parent-shepherd-package* shepherd-0.10)
+(define *use-custom-shepherd* #true)
+;;(define *parent-shepherd-package* shepherd-0.10) ; from guix
+(define *parent-shepherd-package* (@ (shepherd-package) shepherd)) ; from shepherd
 (define *custom-shepherd-dir* "/home/alendvai/workspace/guix/shepherd")
 (define *custom-shepherd-only-from-commits* #true)
 
@@ -188,12 +190,13 @@
    (essential-services
     (modify-services (operating-system-default-essential-services
                       this-operating-system)
-                     (shepherd-root-service-type config =>
-                                                 (shepherd-configuration
-                                                  (inherit config)
-                                                  (shepherd (if *use-custom-shepherd*
-                                                                custom-shepherd
-                                                                shepherd))))))))
+                     (shepherd-root-service-type
+                      config =>
+                      (shepherd-configuration
+                       (inherit config)
+                       (shepherd (if *use-custom-shepherd*
+                                     custom-shepherd
+                                     shepherd))))))))
 
 (define *swarm-marionette-os*
   (marionette-operating-system
