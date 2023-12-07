@@ -102,9 +102,6 @@
 (define serialize-integer serialize-field)
 (define serialize-non-negative-integer serialize-field)
 (define serialize-service-name serialize-field)
-(define (serialize-lighthouse-command . _)
-  ;; NOP, because it's special-cased in LIGHTHOUSE-CONFIGURATION->CMD-ARGUMENTS
-  '())
 
 (define-maybe string)
 (define-maybe list)
@@ -118,7 +115,8 @@
   ;; For simplicity the field names here are the same as the
   ;; Lighthouse config entry names.
   (command               (lighthouse-command 'beacon_node)
-   "The command for the lighthouse binary.")
+   "The command for the lighthouse binary."
+   empty-serializer) ; it's special-cased in LIGHTHOUSE-CONFIGURATION->CMD-ARGUMENTS
   (datadir               maybe-string
                          "Directory where the state is stored.")
   (debug-level           maybe-string
@@ -179,15 +177,10 @@ the name of the execution engine's service here.")
 (define (lighthouse-configuration->cmd-arguments config)
   (cons*
    (symbol->string (lighthouse-configuration-command config))
-   (fold (lambda (field result)
-           (let ((name (configuration-field-name field))
-                 (value ((configuration-field-getter field) config)))
-             (if (maybe-value-set? value)
-                 (append ((configuration-field-serializer field) name value)
-                         result)
-                 result)))
-         '()
-         lighthouse-configuration-fields)))
+   (list-transduce (compose (base-transducer config)
+                           tconcatenate)
+                  rcons
+                  lighthouse-configuration-fields)))
 
 (define (apply-config-defaults config)
   (match-record config <lighthouse-service-configuration>
