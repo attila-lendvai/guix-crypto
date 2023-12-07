@@ -270,15 +270,10 @@ the chain).")
    "Config object to generate the startup arguments for the Nethermind binary."))
 
 (define (nethermind-configuration->cmd-arguments config)
-  (fold (lambda (field result)
-          (let ((name (configuration-field-name field))
-                (value ((configuration-field-getter field) config)))
-            (if (maybe-value-set? value)
-                (append ((configuration-field-serializer field) name value)
-                        result)
-                result)))
-        '()
-        nethermind-configuration-fields))
+  (list-transduce (compose (base-transducer config)
+                           tconcatenate)
+                  rcons
+                  nethermind-configuration-fields))
 
 (define (chain-name-from-config nm-config-field)
   ;; TODO handle the case when nm-config is a full path to a config file
