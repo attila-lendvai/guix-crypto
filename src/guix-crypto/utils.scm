@@ -255,6 +255,7 @@
   (log2.dribble "ENSURE-PASSWORD-FILE for ~S" password-file)
   (unless (file-exists? password-file)
     (log2.debug "Generating password file ~S" password-file)
+    ;; TODO [sh] /bin/sh: line 1: head: command not found
     (let ((cmd (string-append
                 "< /dev/urandom tr -dc _A-Z-a-z-0-9 2> /dev/null | head -c32 >'"
                 password-file "'")))

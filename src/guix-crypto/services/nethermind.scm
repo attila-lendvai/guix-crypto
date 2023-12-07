@@ -17,7 +17,6 @@
 
 ;;; TODO this is copied from other services; there's quite a lot of overlap
 ;;;      waiting to be factored out.
-;;; TODO clean up the situation with the log. in theory the daemon also logs by itself, but it doesn't seem to work.
 
 (define-module (guix-crypto services nethermind)
   #:use-module (guix-crypto utils)
