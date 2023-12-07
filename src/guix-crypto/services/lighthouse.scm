@@ -157,7 +157,7 @@ the same value you provided as NETWORK.")
   (user-account          user-account
    "USER-ACCOUNT object (as per (gnu system shadow)) specifying the unix user/group the service process should run under.")
   (shepherd-requirement
-   (list '())
+   (list '(networking file-systems))
    "Guix service names that are appended to the REQUIREMENT field of the \
 Shepherd service instance; i.e. here you can specify extra \
 dependencies for the start order of the services. Typically you want to add \
@@ -220,8 +220,7 @@ the name of the execution engine's service here.")
           (documentation (simple-format #f "An lighthouse node connecting to network '~A'"
                                         network))
           (provision (list (string->symbol service-name)))
-          (requirement (append '(networking file-systems)
-                               shepherd-requirement))
+          (requirement shepherd-requirement)
           (modules +default-service-modules+)
           (start
            (let ((log-dir  (default-log-directory)))
