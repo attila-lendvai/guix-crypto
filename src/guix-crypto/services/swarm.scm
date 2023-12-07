@@ -192,7 +192,7 @@ nodes should join.  Defaults to swarm/mainnet.")
   (node-count            (non-negative-integer 1)
    "How many Bee nodes should be started.")
   (shepherd-requirement
-   (list '())
+   (list '(networking file-systems))
    "Guix service names that are appended to the REQUIREMENT field of each \
 Bee node's Shepherd service instance; i.e. here you can specify extra \
 dependencies for the start order of the services, e.g. if you are running \
@@ -368,8 +368,7 @@ first command line argument."
             (documentation (simple-format #f "Swarm bee node ~S in swarm ~S."
                                           bee-index swarm-name))
             (provision (list (bee-service-name swarm-name bee-index)))
-            (requirement (append '(networking file-systems)
-                                 shepherd-requirement))
+            (requirement shepherd-requirement)
             (actions (list address-action
                            log-file-action
                            (shepherd-configuration-action config-file)
