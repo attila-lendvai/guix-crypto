@@ -249,9 +249,6 @@ the name of the execution engine's service here.")
 
                    (log.debug "Lighthouse service is starting up")
 
-                   (ensure-directories 0 "lighthouse" #o2771
-                                       "/var/lib/lighthouse")
-
                    (ensure-directories/rec #$user #$group #o2751
                                            #$datadir)
 
