@@ -153,8 +153,7 @@
       lighthouse-service-type
       (lighthouse-service-configuration
        (service-name            'gnosis-c)
-       (user                    "gnosis")
-       (group                   "mainnet")
+       (user-account            *gnosis-user*)
        (shepherd-requirement    '(gnosis-e))
        (lighthouse-configuration
         (lighthouse-configuration

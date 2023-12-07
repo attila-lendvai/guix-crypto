@@ -154,14 +154,8 @@
 PROVISION value of the Shepherd service, and as a path component \
 in the data and log directories. You typically want to use here \
 the same value you provided as NETWORK.")
-  (user                  maybe-string
-   "Unix user for the service process.")
-  (user-id               maybe-non-negative-integer
-   "Unix uid for @code{user}.")
-  (group                 maybe-string
-   "Unix group for @code{user} and the service processes.")
-  (group-id              maybe-non-negative-integer
-   "Unix gid for @code{group}.")
+  (user-account          user-account
+   "USER-ACCOUNT object (as per (gnu system shadow)) specifying the unix user/group the service process should run under.")
   (shepherd-requirement
    (list '())
    "Guix service names that are appended to the REQUIREMENT field of the \
@@ -184,7 +178,7 @@ the name of the execution engine's service here.")
 
 (define (apply-config-defaults config)
   (match-record config <lighthouse-service-configuration>
-      (user group service-name (lighthouse-configuration lh-config))
+      (service-name (lighthouse-configuration lh-config))
     (match-record lh-config <lighthouse-configuration>
         (network datadir logfile)
       (let* ((network (ensure-string network))
@@ -193,8 +187,6 @@ the name of the execution engine's service here.")
                                          (string-append "lh-" network)))))
         (lighthouse-service-configuration
          (inherit config)
-         (user         (maybe-value user (string-append "lh-" network)))
-         (group        (maybe-value group "lighthouse"))
          (service-name service-name)
          (lighthouse-configuration
           (let ((datadir (ensure-string
@@ -219,8 +211,8 @@ the name of the execution engine's service here.")
   (set! config (apply-config-defaults config))
   (with-service-gexp-modules '()
     (match-record config <lighthouse-service-configuration>
-        (user group service-name lighthouse lighthouse-configuration
-              shepherd-requirement)
+        (user-account service-name lighthouse lighthouse-configuration
+                      shepherd-requirement)
       (match-record lighthouse-configuration <lighthouse-configuration>
           (network datadir)
         (list
@@ -232,79 +224,61 @@ the name of the execution engine's service here.")
                                shepherd-requirement))
           (modules +default-service-modules+)
           (start
-           (let (;; TODO delme (path     (file-append coreutils "/bin"))
-                 (log-dir  (default-log-directory)))
+           (let ((log-dir  (default-log-directory)))
              #~(lambda args
-                 ;;(setenv "PATH" #$path)
-                 (with-log-directory #$log-dir
-                   (ensure-directories 0 "lighthouse" #o2775
-                                       "/var/log/lighthouse")
+                 (let ((user  '#$(user-account-name  user-account))
+                       (group '#$(user-account-group user-account)))
+                   ;;(setenv "PATH" #$path)
+                   (with-log-directory #$log-dir
+                     ;; TODO delme
+                     (ensure-directories 0 "lighthouse" #o2775
+                                         "/var/log/lighthouse")
 
-                   (log2.debug "Lighthouse service is starting up")
+                     (log2.debug "Lighthouse service is starting up")
 
-                   (ensure-directories/rec #$user #$group #o2751
-                                           #$datadir)
+                     (ensure-directories/rec user group #o2751 #$datadir)
 
-                   (define cmd '#$(cons*
-                                   (file-append lighthouse "/bin/lighthouse")
-                                   (lighthouse-configuration->cmd-arguments
-                                    lighthouse-configuration)))
+                     (define cmd '#$(cons*
+                                     (file-append lighthouse "/bin/lighthouse")
+                                     (lighthouse-configuration->cmd-arguments
+                                      lighthouse-configuration)))
 
-                   (log2.debug "Will exec ~S" cmd)
+                     (log2.debug "Will exec ~S" cmd)
 
-                   (define forkexec
-                     (make-forkexec-constructor
-                      cmd
-                      #:user #$user
-                      #:group #$group
-                      ;; TODO FIXME decide about this. maybe keep it as a low traffic log?
-                      ;; if kept, then set up log rotation
-                      #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
-                      #:environment-variables
-                      (append
-                       (list (string-append "HOME=" #$datadir)
-                             ;;(string-append "PATH=" #$path)
-                             "RUST_BACKTRACE=full")
-                       +root-environment+)))
+                     (define forkexec
+                       (make-forkexec-constructor
+                        cmd
+                        #:user user
+                        #:group group
+                        #:supplementary-groups '#$(user-account-supplementary-groups user-account)
+                        ;; TODO FIXME decide about this. maybe keep it as a low traffic log?
+                        ;; if kept, then set up log rotation
+                        ;; #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
+                        #:log-file "/dev/null"
+                        #:environment-variables
+                        (append
+                         (list (string-append "HOME=" #$datadir)
+                               ;;(string-append "PATH=" #$path)
+                               "RUST_BACKTRACE=full")
+                         +root-environment+)))
 
-                   ;; We need to do this here, because we must not return from
-                   ;; START until the daemon is properly up and running,
-                   ;; otherwise any (requirement ...) specification on other
-                   ;; services is useless.
-                   (let ((pid (apply forkexec args)))
-                     ;;(ensure-ipc-file-permissions pid #$ipc-path)
-                     pid)))))
+                     ;; We need to do this here, because we must not return from
+                     ;; START until the daemon is properly up and running,
+                     ;; otherwise any (requirement ...) specification on other
+                     ;; services is useless.
+                     (let ((pid (apply forkexec args)))
+                       ;;(ensure-ipc-file-permissions pid #$ipc-path)
+                       pid))))))
           (stop #~(make-kill-destructor #:grace-period 60))))))))
 
-(define (make-unix-user-accounts config)
-  (set! config (apply-config-defaults config))
-  (match-record config <lighthouse-service-configuration>
-      (user user-id group group-id lighthouse-configuration)
-    (match-record lighthouse-configuration <lighthouse-configuration>
-        (network datadir)
-      ;; NOTE it's safe to forward the #false default value of uid/gid to
-      ;; USER-ACCOUNT.
-      (append
-       (if (equal? group "lighthouse")
-           '()
-           (list
-            (user-group
-             (name "lighthouse")
-             (system? #t))))
-       (list
-        (user-group
-         (name group)
-         (id (maybe-value group-id))
-         (system? #t))
-        (user-account
-         (name user)
-         (uid (maybe-value user-id))
-         (group group)
-         (supplementary-groups (delete group '("lighthouse")))
-         (system? #t)
-         (comment (string-append "Lighthouse service for network '" network "'"))
-         (home-directory datadir)
-         (shell (file-append shadow "/sbin/nologin"))))))))
+(define (make-unix-user-accounts service-config)
+  ;; It's a tempting idea to include USER-ACCOUNT here, but then what to do with
+  ;; the group? The GROUP slot is only a string (i.e. not a USER-GROUP
+  ;; instance).
+  (list
+   (user-group
+    (name "lighthouse")
+    (system? #t))))
 
 (define (make-lighthouse-log-rotations service-config)
   (set! service-config (apply-config-defaults service-config))
