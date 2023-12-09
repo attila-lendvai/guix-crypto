@@ -345,17 +345,11 @@ the chain).")
                           (group '#$(user-account-group user-account)))
                      (setenv "PATH" path-string)
 
-                     (ensure-directories 0 "nethermind" #o2771
-                                         "/var/log/nethermind")
+                     (ensure-directories 0 0 #o2771 "/var/log/nethermind")
 
                      (log2.debug "Nethermind service is starting up, log initialized, args are ~A" args)
                      (log2.dribble "PATH is ~S" (getenv "PATH"))
                      (log2.dribble "SHELL is ~S" (getenv "SHELL"))
-
-                     (ensure-directories 0 "nethermind" #o2771
-                                         "/var/lib/nethermind")
-
-                     (log2.dribble "/var/lib/nethermind initialized")
 
                      (ensure-directories/rec user group #o2751
                                              #$datadir)
@@ -420,14 +414,14 @@ the chain).")
           (stop
            #~(make-kill-destructor #:grace-period 120))))))))
 
-(define (make-unix-user-accounts service-config)
-  ;; It's a tempting idea to list USER-ACCOUNT here, but then what to do with
-  ;; the group? The GROUP slot is only a string (as opposed to a USER-GROUP
-  ;; instance).
-  (list
-   (user-group
-    (name "nethermind")
-    (system? #t))))
+;; (define (make-unix-user-accounts service-config)
+;;   ;; It's a tempting idea to list USER-ACCOUNT here, but then what to do with
+;;   ;; the group? The GROUP slot is only a string (as opposed to a USER-GROUP
+;;   ;; instance).
+;;   (list
+;;    (user-group
+;;     (name "nethermind")
+;;     (system? #t))))
 
 (define (make-nethermind-log-rotations service-config)
   (set! service-config (apply-config-defaults service-config))
@@ -456,8 +450,8 @@ the chain).")
     ;; system --share=... vm ...`
     (list (service-extension shepherd-root-service-type
                              make-shepherd-service)
-          (service-extension account-service-type
-                             make-unix-user-accounts)
+          ;; (service-extension account-service-type
+          ;;                    make-unix-user-accounts)
           (service-extension rottlog-service-type
                              make-nethermind-log-rotations)))
    (description "Runs a Nethermind instance as a Shepherd service.")))
