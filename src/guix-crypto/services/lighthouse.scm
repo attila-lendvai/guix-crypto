@@ -229,9 +229,7 @@ the name of the execution engine's service here.")
                        (group '#$(user-account-group user-account)))
                    ;;(setenv "PATH" #$path)
                    (with-log-directory #$log-dir
-                     ;; TODO delme
-                     (ensure-directories 0 "lighthouse" #o2775
-                                         "/var/log/lighthouse")
+                     (ensure-directories #false #false #o2775 "/var/log/lighthouse")
 
                      (log2.debug "Lighthouse service is starting up")
 
@@ -270,14 +268,14 @@ the name of the execution engine's service here.")
                        pid))))))
           (stop #~(make-kill-destructor #:grace-period 60))))))))
 
-(define (make-unix-user-accounts service-config)
-  ;; It's a tempting idea to include USER-ACCOUNT here, but then what to do with
-  ;; the group? The GROUP slot is only a string (i.e. not a USER-GROUP
-  ;; instance).
-  (list
-   (user-group
-    (name "lighthouse")
-    (system? #t))))
+;; (define (make-unix-user-accounts service-config)
+;;   ;; It's a tempting idea to include USER-ACCOUNT here, but then what to do with
+;;   ;; the group? The GROUP slot is only a string (i.e. not a USER-GROUP
+;;   ;; instance).
+;;   (list
+;;    (user-group
+;;     (name "lighthouse")
+;;     (system? #t))))
 
 (define (make-lighthouse-log-rotations service-config)
   (set! service-config (apply-config-defaults service-config))
@@ -308,8 +306,8 @@ the name of the execution engine's service here.")
     ;; system --share=... vm ...`
     (list (service-extension shepherd-root-service-type
                              make-shepherd-service)
-          (service-extension account-service-type
-                             make-unix-user-accounts)
+          ;; (service-extension account-service-type
+          ;;                    make-unix-user-accounts)
           (service-extension rottlog-service-type
                              make-lighthouse-log-rotations)))
    (description "Runs an Lighthouse instance as a Shepherd service.")))
