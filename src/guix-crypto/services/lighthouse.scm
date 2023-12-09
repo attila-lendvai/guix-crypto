@@ -162,7 +162,11 @@ the same value you provided as NETWORK.")
 Shepherd service instance; i.e. here you can specify extra \
 dependencies for the start order of the services. Typically you want to add \
 the name of the execution engine's service here.")
-  (lighthouse-configuration lighthouse-configuration
+  (stdio-logfile
+   maybe-string
+   "")
+  (lighthouse-configuration
+   lighthouse-configuration
    "Configuration for the Lighthouse binary."))
 
 ;; NOTE: We cannot easily write a config file for OE because it groups the
@@ -212,7 +216,7 @@ the name of the execution engine's service here.")
   (with-service-gexp-modules '()
     (match-record config <lighthouse-service-configuration>
         (user-account service-name lighthouse lighthouse-configuration
-                      shepherd-requirement)
+                      shepherd-requirement stdio-logfile)
       (match-record lighthouse-configuration <lighthouse-configuration>
           (network datadir)
         (list
@@ -248,10 +252,8 @@ the name of the execution engine's service here.")
                         #:user user
                         #:group group
                         #:supplementary-groups '#$(user-account-supplementary-groups user-account)
-                        ;; TODO FIXME decide about this. maybe keep it as a low traffic log?
-                        ;; if kept, then set up log rotation
-                        ;; #:log-file #$(string-append log-dir "/" service-name ".stdout.log")
-                        #:log-file "/dev/null"
+                        ;; TODO set up logrotation for this
+                        #:log-file #$(maybe-value stdio-logfile "/dev/null")
                         #:environment-variables
                         (append
                          (list (string-append "HOME=" #$datadir)
