@@ -191,12 +191,18 @@ nodes should join.  Defaults to swarm/mainnet.")
                          "The Bee Guix package to use.")
   (node-count            (non-negative-integer 1)
    "How many Bee nodes should be started.")
-  (shepherd-requirement
+  (requirement
    (list '(networking file-systems))
    "Guix service names that are appended to the REQUIREMENT field of each \
 Bee node's Shepherd service instance; i.e. here you can specify extra \
 dependencies for the start order of the services, e.g. if you are running \
 a local Gnosis chain node instance, then you can add its name here.")
+  (respawn-limit
+   (respawn-limit #false)
+   "Respawn limit. By default keep respawning forever.")
+  (respawn-delay
+   (number 5)
+   "Wait secs between respawns. Defaults to 5.")
   ;; Users and groups
   (bee-user              maybe-user-account
                          "USER-ACCOUNT object specifying the Unix user for the Bee processes.")
@@ -265,7 +271,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                                (guix-crypto swarm-utils))
    (match-record service-config <swarm-service-configuration>
        (swarm bee-configuration bee bee-user swarm-group node-count
-              shepherd-requirement)
+              requirement respawn-limit respawn-delay)
      (match-record swarm <swarm>
          ((name swarm-name) network-id)
        (match-record bee-configuration <bee-configuration>
@@ -368,13 +374,13 @@ first command line argument."
             (documentation (simple-format #f "Swarm bee node ~S in swarm ~S."
                                           bee-index swarm-name))
             (provision (list (bee-service-name swarm-name bee-index)))
-            (requirement shepherd-requirement)
+            (requirement   requirement)
+            (respawn-limit respawn-limit)
+            (respawn-delay respawn-delay)
             (actions (list address-action
                            log-file-action
                            (shepherd-configuration-action config-file)
                            backup-identity-action))
-            ;; TODO once the patch has reached shepherd
-            ;; (respawn-limit '(5 . 30)) ; disable after 5 restarts in 30 secs
             (modules (append
                       '((guix-crypto swarm-utils)
                         (srfi srfi-1))
@@ -388,9 +394,6 @@ first command line argument."
                             (data-dir   '#$data-dir)
                             (password-file '#$password-file))
                         (log2.debug "Bee service is starting")
-
-                        ;; KLUDGE TODO this is here because shepherd respawns us in a busy loop
-                        ((@ (fibers) sleep) 2)
 
                         (ensure-directories/rec bee-user-id bee-group-id #o2770 data-dir)
                         (ensure-password-file password-file bee-user-id bee-group-id)

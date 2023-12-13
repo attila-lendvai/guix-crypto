@@ -118,7 +118,7 @@
   (user-account
    (name "gnosis")
    (group (user-group-name *mainnet-group*))
-   (supplementary-groups '("nethermind" "lighthouse"))
+   ;;(supplementary-groups '("nethermind" "lighthouse"))
    (system? #t)
    (comment (string-append "User for the Gnosis chain daemons"))
    (home-directory "/nohome")
@@ -154,7 +154,7 @@
       (lighthouse-service-configuration
        (service-name            'gnosis-c)
        (user-account            *gnosis-user*)
-       (shepherd-requirement    '(gnosis-e))
+       (requirement             '(gnosis-e))
        (lighthouse-configuration
         (lighthouse-configuration
          (network               "gnosis")
@@ -169,7 +169,7 @@
       (swarm-service-configuration
        (swarm                           swarm/mainnet)
        (node-count                      2)
-       ;;(shepherd-requirement '(gnosis))
+       ;;(requirement '(gnosis))
        (bee-configuration
         (bee-configuration
          (resolver-options               "https://mainnet.infura.io/v3/7216e0c44a0c47d99ca6de1c82b5d7b9")

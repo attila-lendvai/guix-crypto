@@ -156,12 +156,18 @@ in the data and log directories. You typically want to use here \
 the same value you provided as NETWORK.")
   (user-account          user-account
    "USER-ACCOUNT object (as per (gnu system shadow)) specifying the unix user/group the service process should run under.")
-  (shepherd-requirement
+  (requirement
    (list '(networking file-systems))
    "Guix service names that are appended to the REQUIREMENT field of the \
 Shepherd service instance; i.e. here you can specify extra \
 dependencies for the start order of the services. Typically you want to add \
 the name of the execution engine's service here.")
+  (respawn-limit
+   (respawn-limit #false)
+   "Respawn limit. By default keep respawning forever.")
+  (respawn-delay
+   (number 5)
+   "Wait secs between respawns. Defaults to 5.")
   (stdio-logfile
    maybe-string
    "")
@@ -216,7 +222,7 @@ the name of the execution engine's service here.")
   (with-service-gexp-modules '()
     (match-record config <lighthouse-service-configuration>
         (user-account service-name lighthouse lighthouse-configuration
-                      shepherd-requirement stdio-logfile)
+                      requirement respawn-limit respawn-delay stdio-logfile)
       (match-record lighthouse-configuration <lighthouse-configuration>
           (network datadir)
         (list
@@ -224,7 +230,9 @@ the name of the execution engine's service here.")
           (documentation (simple-format #f "An lighthouse node connecting to network '~A'"
                                         network))
           (provision (list (string->symbol service-name)))
-          (requirement shepherd-requirement)
+          (requirement requirement)
+          (respawn-limit respawn-limit)
+          (respawn-delay respawn-delay)
           (modules +default-service-modules+)
           (start
            (let ((log-dir  (default-log-directory)))

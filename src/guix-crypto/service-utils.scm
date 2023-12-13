@@ -50,6 +50,12 @@
   (and (exact-integer? val)
        (not (negative? val))))
 
+(define-public (respawn-limit? val)
+  (or (boolean? val)
+      (and (list? val)
+           (number? (car val))
+           (number? (cdr val)))))
+
 ;;;
 ;;; Service stuff
 ;;;
