@@ -20,12 +20,9 @@
 ;;   - https://issues.guix.gnu.org/53781
 ;; - make sure that passwords on the stack are not printed in backtraces
 ;; - synchronize our config defaults with that of the Bee client?
-;; - add respawn delay. test scenario: broken swap endpoint url makes it respawn in a busy loop
-;;   - maybe add a respawn-delay to respawn-service in shepherd
 
 ;; BUGS:
 ;; - chown the bee-0.password file?
-;; - herd backup-identity bee-0 creates an empty tgz
 
 (define-module (guix-crypto services swarm)
   #:use-module (guix-crypto utils)
@@ -347,11 +344,10 @@ first command line argument."
                                         "keys/"
                                         "statestore/"))
                              (cmd-string (string-append
-                                          "install --mode=600 <("
+                                          #$(file-append coreutils "/bin/install")
+                                          " --mode=600 <("
                                           (string-join cmd " ")
                                           " | " compressor ") " dest-path)))
-                        (log2.debug "Will run now: ls -l /bin/sh") ; TODO delme
-                        (system "ls -l /bin/sh") ; TODO delme
                         (log2.debug "Will run backup cmd: ~S, PATH is ~A, uid is ~A, $SHELL is ~S" cmd-string (getenv "PATH") (getuid) (getenv "SHELL"))
                         ;; NOTE SYSTEM* together with --gzip didn't work (status (apply system* cmd))
                         ;; NOTE SYSTEM is rebound in shepherd with SPAWN-SHELL-COMMAND,
