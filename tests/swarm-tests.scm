@@ -168,16 +168,19 @@
       swarm-service-type
       (swarm-service-configuration
        (swarm                           swarm/mainnet)
-       (node-count                      2)
-       ;;(requirement '(gnosis))
-       (bee-configuration
-        (bee-configuration
-         (resolver-options               "https://mainnet.infura.io/v3/7216e0c44a0c47d99ca6de1c82b5d7b9")
-         ;;(blockchain-rpc-endpoint        "/var/lib/openethereum/gnosis/gnosis.ipc")
-         ;;(blockchain-rpc-endpoint        "https://gno.getblock.io/30f88254-c3fb-4188-a991-060f50085ecb/mainnet/")
-         (blockchain-rpc-endpoint        "http://serlap.lan:8545")
-         (swap-initial-deposit 0)
-         (debug-api-enable     #true)))))
+       (bee-configurations
+        (indexed-bee-configurations
+         2
+         (bee-config-values
+          (resolver-options "https://mainnet.infura.io/v3/7216e0c44a0c47d99ca6de1c82b5d7b9")
+          (blockchain-rpc-endpoint "http://serlap.lan:8545")
+          (swap-initial-deposit 0)
+          (debug-api-enable #true))))))
+
+     (simple-service
+      'server-config
+      sysctl-service-type
+      '(("fs.file-max" . "2000000")))
 
      (modify-services %base-services
        (sysctl-service-type config =>
