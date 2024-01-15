@@ -44,35 +44,27 @@
   #:export        ; Also note the extensive use of DEFINE-PUBLIC below
   ())
 
-(define-public *service-log-directory* "/var/log/swarm/")
+(define-public *service-log-directory* "/var/log/swarm")
 
 (define-public (default-log-directory swarm-name)
-  (string-append *service-log-directory* swarm-name))
+  (simple-format #f "~A/~A" *service-log-directory* swarm-name))
 
-(define-public (bee-log-filename log-dir bee-index)
-  (simple-format #f "~A/bee-~A.log" log-dir bee-index))
+(define-public (bee-log-filename log-dir bee-name)
+  (simple-format #f "~A/~A.log" log-dir bee-name))
 
 (define-public *service-data-directory* "/var/lib/swarm/")
 
 (define-public (swarm-data-directory swarm-name)
   (string-append *service-data-directory* swarm-name))
 
-(define-public (bee-data-directory swarm-name bee-index)
-  (string-append (swarm-data-directory swarm-name) "/bee-"
-                 (number->string bee-index)))
+(define-public (bee-data-directory swarm-name bee-name)
+  (simple-format #f "~A/~A" (swarm-data-directory swarm-name) bee-name))
 
-(define-public (bee-wallet-file swarm-name bee-index)
-  (string-append (bee-data-directory swarm-name bee-index) "/keys/swarm.key"))
+(define-public (bee-wallet-file swarm-name bee-name)
+  (simple-format #f "~A/keys/swarm.key" (bee-data-directory swarm-name bee-name)))
 
-(define-public (bee-password-file swarm-name bee-index)
-  (string-append (swarm-data-directory swarm-name) "/bee-"
-                 (number->string bee-index) ".password"))
-
-(define-public (bee-service-name swarm-name bee-index)
-  (string->symbol
-   (if (equal? "mainnet" swarm-name)
-       (simple-format #f "bee-~A" bee-index)
-       (simple-format #f "bee-~A-~A" swarm-name bee-index))))
+(define-public (bee-password-file swarm-name bee-name)
+  (simple-format #f "~A/~A.password" (swarm-data-directory swarm-name) bee-name))
 
 (define-public* (wallet-file-address filename)
   (let* ((json (call-with-input-file filename
