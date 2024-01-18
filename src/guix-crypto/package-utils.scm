@@ -33,24 +33,23 @@
                                       "/" filename))
           (error "%read-module-relative-file failed for" filename))
     (lambda _
-      (values (read)     ; version
-              (read))))) ; hashes
+      (let ((result '()))
+        (do ((entry (read) (read)))
+            ((eof-object? entry))
+          (set! result (cons entry result)))
+        (reverse! result)))))
 
 (define-syntax read-hashes-file
   (lambda (syn)
     (syntax-case syn ()
       ((_ filename)
-       (with-syntax
-           ;; Reads the file at compile time and macroexpands to the first form in it.
-           ((form (call-with-values
-                      (lambda _
-                        (%read-module-relative-file (current-module)
-                                                    (string-append "hashes/"
-                                                                   (syntax->datum #'filename)
-                                                                   ".hashes")))
-                    (lambda (version hashes)
-                      #`(values '#,version '#,hashes)))))
-         #'form)))))
+       #`(values #,@(map (lambda (x)
+                           #`(quote #,x))
+                         (%read-module-relative-file
+                          (current-module)
+                          (string-append "hashes/"
+                                         (syntax->datum #'filename)
+                                         ".hashes"))))))))
 
 (define-public (unsupported-arch package-name system)
   (raise (formatted-message

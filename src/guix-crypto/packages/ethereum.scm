@@ -43,8 +43,7 @@
   #:use-module (srfi srfi-71))
 
 (define-public geth-binary
-  (let ((commit-hash "dd938d10")  ; first 8 digits of the tagged commit's hash
-        (version hashes (read-hashes-file "geth-binary")))
+  (let ((version hashes commit-hash (read-hashes-file "geth-binary")))
     (package
       (name "geth-binary")
       (version version)
@@ -127,8 +126,7 @@ censorship, fraud or third party interference.")
                     (("build_tools/gnu_parallel") "parallel"))))))))
 
 (define-public nethermind-binary
-  (let ((commit-hash "db6ecc76")       ; first 8 digits of the tagged commit's hash
-        (version hashes (read-hashes-file "nethermind-binary")))
+  (let ((version hashes commit-hash (read-hashes-file "nethermind-binary")))
     (package
       (name "nethermind-binary")
       (version version)
@@ -282,8 +280,7 @@ work on Guix.")
        '((release-monitoring-url . "https://github.com/sigp/lighthouse/releases"))))))
 
 (define-public nimbus-binary
-  (let ((commit-hash "d014d0a5")  ; first 8 digits of the tagged commit's hash
-        (version hashes (read-hashes-file "nimbus-binary")))
+  (let ((version hashes commit-hash (read-hashes-file "nimbus-binary")))
     (package
       (name "nimbus-binary")
       (version version)

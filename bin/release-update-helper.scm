@@ -58,80 +58,85 @@
          (hash (string-trim-right
                 (spawn-and-slurp-output "bash" "-c" git-cmd)
                 #\newline)))
-    (format #t "commit hash '~A'~%" hash)
+    ;;(format #t "commit hash '~A'~%" hash)
     (unless (equal? (string-length hash) 40)
       (error "hash-of-tag failed, git-cmd was" git-cmd))
-    hash))
+    (substring hash 0 8)))
 
 (define hash-of-tag
   (memoize hash-of-tag/impl))
 
-(define* (add-hash-of-tag-as-third-arg fn repo-uri #:key (tag-prefix ""))
-  (lambda args
-    (let* ((version (second args))
-           (hash (hash-of-tag repo-uri version #:tag-prefix tag-prefix)))
-      (apply fn (append (list-head args 2)
-                        (list (substring hash 0 8))
-                        (list-tail args 2))))))
-
 (define +package-db+
-  `(("geth-binary"
-     ,(add-hash-of-tag-as-third-arg
-       geth-release-uri
-       "https://github.com/ethereum/go-ethereum.git"
-       #:tag-prefix "v")
-     ;; As per https://geth.ethereum.org/downloads/#openpgp_signatures
-     ;; captured at 2021-10-29.
-     ("FDE5A1A044FA13D2F7ADA019A61A13569BA28146")
-     ,guix-system-name->go-system-name
-     ("i686-linux" "x86_64-linux" "aarch64-linux"))
+  (list
+   (let ((get-hash
+          (lambda (version)
+            (hash-of-tag "https://github.com/ethereum/go-ethereum.git"
+                         version #:tag-prefix "v"))))
+     `("geth-binary"
+       ,(lambda (arch version . rest)
+          (apply geth-release-uri arch version (get-hash version) rest))
+       ;; As per https://geth.ethereum.org/downloads/#openpgp_signatures
+       ;; captured at 2021-10-29.
+       ("FDE5A1A044FA13D2F7ADA019A61A13569BA28146")
+       ,guix-system-name->go-system-name
+       ("i686-linux" "x86_64-linux" "aarch64-linux")
+       ,get-hash))
 
-    ("bee-binary"
+   `("bee-binary"
      ,bee-release-uri
-     ()                            ; TODO signature is through a checksum file
+     ;; TODO signature is done through a checksum file
+     ;; https://github.com/ethersphere/bee/issues/4550
+     ()
      ,guix-system-name->go-system-name
      ("i686-linux" "x86_64-linux" "aarch64-linux"))
 
-    ("zcash-binary"
+   `("zcash-binary"
      ,zcash-release-uri
      ;; https://apt.z.cash/zcash.asc captured at 2022-05-05.
      ("3FE63B67F85EA808DE9B880E6DEF3BAF272766C0")
      ,guix-system-name->zcash-system-name
      ("x86_64-linux"))
 
-    ("nethermind-binary"
-     ,(add-hash-of-tag-as-third-arg
-       nethermind-release-uri
-       "https://github.com/NethermindEth/nethermind.git")
-     ;; Captured at 2022-05-01.
-     ("6942FB745ECE67D86CDA45704770A0C134E353C6"
-      "EECCEA1473108E3222D76722D39BE1DDCB6DA407")
-     ,guix-system-name->nethermind-system-name
-     ("x86_64-linux" "aarch64-linux"))
+   (let ((get-hash
+          (lambda (version)
+            (hash-of-tag "https://github.com/NethermindEth/nethermind.git"
+                         version))))
+     `("nethermind-binary"
+       ,(lambda (arch version . rest)
+          (apply nethermind-release-uri arch version (get-hash version) rest))
+       ;; Captured at 2022-05-01.
+       ("6942FB745ECE67D86CDA45704770A0C134E353C6"
+        "EECCEA1473108E3222D76722D39BE1DDCB6DA407")
+       ,guix-system-name->nethermind-system-name
+       ("x86_64-linux" "aarch64-linux")
+       ,get-hash))
 
-    ("lighthouse-binary"
+   `("lighthouse-binary"
      ,lighthouse-release-uri
      ;; Captured at 2022-12-17.
      ("15E66D941F697E28F49381F426416DC3F30674B0")
      ,guix-system-name->rust-system-name
      ("x86_64-linux" "aarch64-linux"))
 
-    ("nimbus-binary"
-     ,(add-hash-of-tag-as-third-arg
-       nimbus-release-uri
-       "https://github.com/status-im/nimbus-eth2.git"
-       #:tag-prefix "v")
-     () ; TODO they don't sign their binaries?!
-     ,guix-system-name->nimbus-system-name
-     ("x86_64-linux" "aarch64-linux"))
+   (let ((get-hash
+          (lambda (version)
+            (hash-of-tag "https://github.com/status-im/nimbus-eth2.git"
+                         version #:tag-prefix "v"))))
+     `("nimbus-binary"
+       ,(lambda (arch version . rest)
+          (apply nimbus-release-uri arch version (get-hash version) rest))
+       ()                              ; TODO they don't sign their binaries?!
+       ,guix-system-name->nimbus-system-name
+       ("x86_64-linux" "aarch64-linux")
+       ,get-hash))
 
-    ("swarm-tools-binary"
+   `("swarm-tools-binary"
      ,swarm-tools/release-uri
      ()
      ,guix-system-name->rust-system-name
      ("x86_64-linux"))
 
-    ("feather-binary"
+   `("feather-binary"
      ,feather-release-uri
      ;; Captured at 2023-02-04 by me, and also at 2021 oct by a trusted friend.
      ("8185E158A33330C7FD61BC0D1F76E155CEFBA71C")
@@ -167,9 +172,11 @@
     (if (zero? (length fingerprints))
         (format #t "no fingerprints specified, skipping signature verification~%")
         (let ((sig-file (tmp-file arch ".sig")))
+          ;; (format #t "downloading signature to ~A, uri-factory-args ~A~%" sig-file uri-factory-args)
           (download-uri-to-file (apply uri-factory arch (append uri-factory-args
                                                                 '(#:suffix ".asc")))
                                 sig-file)
+          (format #t "Verifying signature in ~A~%" sig-file)
           (verify-gpg-signature
            fingerprints
            (map (cut string-append (dirname (current-filename))
@@ -198,30 +205,37 @@
           (dynamic-wind
             (const #t)
             (lambda ()
-              (let* ((guix-archs (fourth (*package-db-entry*)))
-                     (upstream-archs (map (third (*package-db-entry*)) guix-archs)))
-                (format #t "~%Fetching files and verifying signatures; version ~A~%~%" uri-factory-args)
-                (map (cut download-and-verify-arch <> uri-factory-args) upstream-archs)
-                (format #t "Hashing the files~%")
-                (let ((db '()))
-                  (for-each
-                   (lambda (upstream-arch guix-arch)
-                     (format #t "Hashing for arch ~A~%" upstream-arch)
-                     (set! db (cons (cons guix-arch (hash-arch upstream-arch)) db)))
-                   upstream-archs guix-archs)
-                  (let ((db-file (string-append (dirname (current-filename))
-                                                "/../src/guix-crypto/packages/hashes/"
-                                                pkg-name ".hashes")))
-                    (false-if-exception (delete-file db-file))
-                    (with-output-to-file db-file
-                      (lambda ()
-                        (format #t ";; This file was generated by the ~A script with args ~A~%"
-                                (basename (current-filename)) (cdr cmd))
-                        (write version)
-                        (newline)
-                        (write db)
-                        (newline)))))
-                (format #t "Finished successfully~%")))
+              (match (append (*package-db-entry*)
+                             ;; add an arbitrary number of padding
+                             (make-list 8 #f))
+                ((_ _ guix-arch->upstream-arch guix-archs get-hash . _)
+                 (let ((upstream-archs (map guix-arch->upstream-arch guix-archs)))
+                   (format #t "~%Fetching files and verifying signatures; version ~A~%~%" uri-factory-args)
+                   (map (cut download-and-verify-arch <> uri-factory-args) upstream-archs)
+                   (format #t "Hashing the files~%")
+                   (let ((arch->hash
+                          (map
+                           (lambda (upstream-arch guix-arch)
+                             (format #t "Hashing for arch ~A~%" upstream-arch)
+                             (cons guix-arch (hash-arch upstream-arch)))
+                           upstream-archs guix-archs)))
+                     (let ((db-file (string-append (dirname (current-filename))
+                                                   "/../src/guix-crypto/packages/hashes/"
+                                                   pkg-name ".hashes")))
+                       (format #t "Writing file ~A~%" db-file)
+                       (false-if-exception (delete-file db-file))
+                       (with-output-to-file db-file
+                         (lambda ()
+                           (format #t ";; This file was generated by the ~A script with args ~A~%"
+                                   (basename (current-filename)) (cdr cmd))
+                           (write version)
+                           (newline)
+                           (write arch->hash)
+                           (newline)
+                           (when get-hash
+                             (write (get-hash version))
+                             (newline))))))
+                   (format #t "Finished successfully~%")))))
             (lambda ()
               ;; when using mkdtemp above: (delete-file-recursively (*tmp-directory*))
               #t))))
