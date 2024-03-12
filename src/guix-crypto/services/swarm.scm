@@ -186,7 +186,7 @@ a local Gnosis chain node instance, then you can add its name here.")
    (respawn-limit #false)
    "Respawn limit. By default keep respawning forever.")
   (respawn-delay
-   (number 5)
+   (number 10)
    "Wait secs between respawns. Defaults to 5.")
   (bee-configurations   list-of-bee-configurations
                         "Instances of BEE-CONFIGURATION created e.g. by INDEXED-BEE-CONFIGURATION.")
@@ -370,6 +370,7 @@ first command line argument."
                                            bee-name swarm-name))
              (provision (list bee-name))
              (requirement   requirement)
+             (respawn?      #true)
              (respawn-limit respawn-limit)
              (respawn-delay respawn-delay)
              (actions (list address-action
