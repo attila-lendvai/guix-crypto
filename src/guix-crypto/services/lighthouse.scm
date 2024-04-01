@@ -243,7 +243,7 @@ the name of the execution engine's service here.")
                    (with-log-directory #$log-dir
                      (ensure-directories #false #false #o2775 "/var/log/lighthouse")
 
-                     (log2.debug "Lighthouse service is starting up")
+                     (log.debug "Lighthouse service is starting up")
 
                      (ensure-directories/rec user group #o2751 #$datadir)
 
@@ -252,7 +252,7 @@ the name of the execution engine's service here.")
                                      (lighthouse-configuration->cmd-arguments
                                       lighthouse-configuration)))
 
-                     (log2.debug "Will exec ~S" cmd)
+                     (log.debug "Will exec ~S" cmd)
 
                      (define forkexec
                        (make-forkexec-constructor

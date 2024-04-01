@@ -347,14 +347,14 @@ the chain).")
 
                      (ensure-directories 0 0 #o2771 "/var/log/nethermind")
 
-                     (log2.debug "Nethermind service is starting up, log initialized, args are ~A" args)
-                     (log2.dribble "PATH is ~S" (getenv "PATH"))
-                     (log2.dribble "SHELL is ~S" (getenv "SHELL"))
+                     (log.debug "Nethermind service is starting up, log initialized, args are ~A" args)
+                     (log.dribble "PATH is ~S" (getenv "PATH"))
+                     (log.dribble "SHELL is ~S" (getenv "SHELL"))
 
                      (ensure-directories/rec user group #o2751
                                              #$datadir)
 
-                     (log2.dribble "Nethermind data dir is initialized (~S)" #$datadir)
+                     (log.dribble "Nethermind data dir is initialized (~S)" #$datadir)
 
                      ;; Ensure we have a JWT secret. It should be a 64 digit hexadecimal number.
                      ;; openssl rand -hex 32 | tr -d "\n"
@@ -367,9 +367,9 @@ the chain).")
                                   password-file
                                   "\"")))
                        (if (file-exists? password-file)
-                           (log2.dribble "JWT secret already exists in ~S" password-file)
+                           (log.dribble "JWT secret already exists in ~S" password-file)
                            (begin
-                             (log2.debug "Generating JWT secret into ~S" password-file)
+                             (log.debug "Generating JWT secret into ~S" password-file)
                              (unless (zero? (system cmd))
                                (error "Failed to generate JWT secret" password-file))))
                        (chmod password-file #o440)
@@ -385,7 +385,7 @@ the chain).")
                                  ;; Allow `herd start nethermind-srv -- --some-more-args-for-nethermind
                                  args)))
 
-                       (log2.debug "Will exec ~S" cmd)
+                       (log.debug "Will exec ~S" cmd)
 
                        (let* ((forkexec
                                (make-forkexec-constructor

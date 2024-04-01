@@ -347,14 +347,14 @@ first command line argument."
                                            " --mode=600 <("
                                            (string-join cmd " ")
                                            " | " compressor ") " dest-path)))
-                         (log2.debug "Will run backup cmd: ~S, PATH is ~A, uid is ~A, $SHELL is ~S" cmd-string (getenv "PATH") (getuid) (getenv "SHELL"))
+                         (log.debug "Will run backup cmd: ~S, PATH is ~A, uid is ~A, $SHELL is ~S" cmd-string (getenv "PATH") (getuid) (getenv "SHELL"))
                          ;; NOTE SYSTEM* together with --gzip didn't work (status (apply system* cmd))
                          ;; NOTE SYSTEM is rebound in shepherd with SPAWN-SHELL-COMMAND,
                          ;; and it's not fully compatible: (system) errors instead of
                          ;; returning a boolean.
                          (let* ((status (system cmd-string))
                                 (exit-code (status:exit-val status)))
-                           (log2.debug "Cmd returned exit code ~S" exit-code)
+                           (log.debug "Cmd returned exit code ~S" exit-code)
                            (if (zero? exit-code)
                                (format #t "Node identity files have been backed up into '~A'~%"
                                        dest-path)
@@ -389,7 +389,7 @@ first command line argument."
                              (swarm-name '#$swarm-name)
                              (data-dir   '#$data-dir)
                              (password-file '#$(config-value 'password-file)))
-                         (log2.debug "Bee service is starting")
+                         (log.debug "Bee service is starting")
 
                          (ensure-directories/rec unix-user-id bee-group-id #o2770 data-dir)
                          (ensure-password-file password-file unix-user-id bee-group-id)
@@ -399,7 +399,7 @@ first command line argument."
                              (let ((cmd (list #$(file-append bee "/bin/bee")
                                               "--config" #$config-file
                                               action)))
-                               (log2.dribble "About to spawn Bee, cmd is: ~S" cmd)
+                               (log.dribble "About to spawn Bee, cmd is: ~S" cmd)
                                (fork+exec-command
                                 cmd
                                 #:user '#$(user-account-name unix-user)
@@ -439,10 +439,10 @@ first command line argument."
                            ;; When first started, call `bee init` for this bee
                            ;; instance.
                            (unless (bee-already-initialized?)
-                             (log2.debug "Invoking `bee init` for bee ~S in swarm ~S" bee-name swarm-name)
+                             (log.debug "Invoking `bee init` for bee ~S in swarm ~S" bee-name swarm-name)
                              (wait-for-pid
                               (spawn-bee* "init"))
-                             (log2.dribble "`bee init` finished for bee ~S in swarm ~S" bee-name swarm-name))
+                             (log.dribble "`bee init` finished for bee ~S in swarm ~S" bee-name swarm-name))
 
                            ;; Due to staged compilation, we cannot add the node's
                            ;; eth address to the config bee file, because it only
@@ -496,12 +496,12 @@ number of times, in any random moment."
               (close-port (open-file path "a"))
               (chmod path #o664))
 
-            (log2.dribble "A SWARM-SERVICE-START-GEXP is running for swarm ~S on Guile version ~S" swarm-name (version))
+            (log.dribble "A SWARM-SERVICE-START-GEXP is running for swarm ~S on Guile version ~S" swarm-name (version))
 
             (let ((dir #$(swarm-data-directory swarm-name)))
               ;; The data dir is visible to everyone.
               (ensure-directories 0 unix-group #o2770 dir)
-              (log2.debug "Ensured directory ~S" dir))
+              (log.debug "Ensured directory ~S" dir))
 
             #$body-gexp)))))
 
