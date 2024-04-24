@@ -62,9 +62,10 @@
       (arguments
        (list
         #:strip-binaries? #f            ; The less we modify, the better.
-        #:patchelf-plan ''(("geth")
-                           ("clef")
-                           ("evm"))
+        #:patchelf-plan (let ((libs '("glibc")))
+                            `'(("geth"      ,libs)
+                               ("clef"      ,libs)
+                               ("evm"       ,libs)))
         #:phases
         #~(modify-phases %standard-phases
             (replace 'unpack
