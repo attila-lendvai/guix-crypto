@@ -42,7 +42,6 @@
   #:use-module (gnu packages)
   #:use-module (gnu packages base)
   #:use-module (gnu packages compression)
-  #:use-module (gnu packages bash)
   #:use-module ((gnu packages admin) #:select (shadow))
   #:use-module (gnu services)
   #:use-module (gnu services admin)
@@ -293,7 +292,7 @@ a local Gnosis chain node instance, then you can add its name here.")
                (name name)
                (documentation doc)
                (procedure
-                (swarm-service-action-gexp service-config gexp))))
+                (with-swarm-action-wrapper service-config gexp))))
 
             (define address-action
               (shepherd-action/bee
@@ -378,77 +377,85 @@ first command line argument."
                             (shepherd-configuration-action config-file)
                             backup-identity-action))
              (modules (append
-                       '((guix-crypto swarm-utils)
+                       '((guix-crypto utils)
+                         (guix-crypto swarm-utils)
                          (srfi srfi-1))
                        +default-service-modules+))
              (start
               #~(lambda _
-                  #$(swarm-service-start-gexp
+                  #$(with-swarm-action-wrapper
                      service-config
-                     #~(let ((bee-name   '#$bee-name)
-                             (swarm-name '#$swarm-name)
-                             (data-dir   '#$data-dir)
-                             (password-file '#$(config-value 'password-file)))
-                         (log.debug "Bee service is starting")
+                     #~(let* ((bee-name        '#$bee-name)
+                              (swarm-name      '#$swarm-name)
+                              (unix-user-name  '#$(user-account-name unix-user))
+                              (unix-group-name '#$(user-group-name   unix-group))
+                              (unix-pw         (getpwnam unix-user-name))
+                              (unix-user-id    (passwd:uid unix-pw))
+                              (unix-group-id   (passwd:gid unix-pw))
+                              (data-dir        '#$data-dir)
+                              (password-file   '#$(config-value 'password-file)))
+                         ;; First try to emit something simple and safe, then a bit more.
+                         (log.debug "Bee service is starting up")
+                         (log.info "Bee service is starting up; bee ~A, in swarm ~A" bee-name swarm-name)
+                         (log.dribble "Bee service ~S is starting for swarm ~S on Guile version ~S" bee-name swarm-name (version))
 
-                         (ensure-directories/rec unix-user-id bee-group-id #o2770 data-dir)
-                         (ensure-password-file password-file unix-user-id bee-group-id)
+                         (ensure-directories/rec unix-user-id unix-group-id #o2770 data-dir)
+                         (ensure-password-file password-file unix-user-id unix-group-id)
 
-                         (let ()
-                           (define (spawn-bee* action)
-                             (let ((cmd (list #$(file-append bee "/bin/bee")
-                                              "--config" #$config-file
-                                              action)))
-                               (log.dribble "About to spawn Bee, cmd is: ~S" cmd)
-                               (fork+exec-command
-                                cmd
-                                #:user '#$(user-account-name unix-user)
-                                #:group '#$(user-group-name unix-group)
-                                #:log-file '#$log-file
-                                #:directory data-dir
-                                #:resource-limits
-                                (let ((open-files-limit
-                                       (+ #$(config-value 'db-open-files-limit 4096)
-                                          4096))) ; arbitrary extra for the rest
-                                  `((nofile ,open-files-limit ,open-files-limit)))
-                                #:environment-variables
-                                (delete #false
-                                        (append
-                                         (list
-                                          (string-append "HOME=" data-dir)
-                                          ;; So that these are not visible with ps, or in the
-                                          ;; config file (i.e. world-readable under
-                                          ;; /gnu/store/), because they may contain keys when
-                                          ;; using a service like Infura.
-                                          (let ((value '#$(config-value 'blockchain-rpc-endpoint)))
-                                            (and value
-                                                 (string-append "BEE_BLOCKCHAIN_RPC_ENDPOINT=" value)))
-                                          (let ((value '#$(config-value 'resolver-options)))
-                                            (and value
-                                                 (string-append "BEE_RESOLVER_OPTIONS=" value))))
-                                         +root-environment+)))))
+                         (define (spawn-bee* action)
+                           (let ((cmd (list #$(file-append bee "/bin/bee")
+                                            "--config" #$config-file
+                                            action)))
+                             (log.dribble "About to spawn Bee, user: ~A, group: ~A, cmd: ~S" unix-user-name unix-group-name cmd)
+                             (fork+exec-command
+                              cmd
+                              #:user unix-user-name
+                              #:group unix-group-name
+                              #:log-file '#$log-file
+                              #:directory data-dir
+                              #:resource-limits
+                              (let ((open-files-limit
+                                     (+ #$(config-value 'db-open-files-limit 4096)
+                                        4096))) ; arbitrary extra for the rest
+                                `((nofile ,open-files-limit ,open-files-limit)))
+                              #:environment-variables
+                              (delete #false
+                                      (append
+                                       (list
+                                        (string-append "HOME=" data-dir)
+                                        ;; So that these are not visible with ps, or in the
+                                        ;; config file (i.e. world-readable under
+                                        ;; /gnu/store/), because they may contain keys when
+                                        ;; using a service like Infura.
+                                        (let ((value '#$(config-value 'blockchain-rpc-endpoint)))
+                                          (and value
+                                               (string-append "BEE_BLOCKCHAIN_RPC_ENDPOINT=" value)))
+                                        (let ((value '#$(config-value 'resolver-options)))
+                                          (and value
+                                               (string-append "BEE_RESOLVER_OPTIONS=" value))))
+                                       +root-environment+)))))
 
-                           (define (bee-already-initialized?)
-                             (any (lambda (el)
-                                    (file-exists?
-                                     (string-append data-dir "/keys/" el)))
-                                  '("libp2p_v2.key"
-                                    "swarm.key"
-                                    "pss.key")))
+                         (define (bee-already-initialized?)
+                           (any (lambda (el)
+                                  (file-exists?
+                                   (string-append data-dir "/keys/" el)))
+                                '("libp2p_v2.key"
+                                  "swarm.key"
+                                  "pss.key")))
 
-                           ;; When first started, call `bee init` for this bee
-                           ;; instance.
-                           (unless (bee-already-initialized?)
-                             (log.debug "Invoking `bee init` for bee ~S in swarm ~S" bee-name swarm-name)
-                             (wait-for-pid
-                              (spawn-bee* "init"))
-                             (log.dribble "`bee init` finished for bee ~S in swarm ~S" bee-name swarm-name))
+                         ;; When first started, call `bee init` for this bee
+                         ;; instance.
+                         (unless (bee-already-initialized?)
+                           (log.debug "Invoking `bee init` for bee ~S in swarm ~S" bee-name swarm-name)
+                           (wait-for-pid
+                            (spawn-bee* "init"))
+                           (log.dribble "`bee init` finished for bee ~S in swarm ~S" bee-name swarm-name))
 
-                           ;; Due to staged compilation, we cannot add the node's
-                           ;; eth address to the config bee file, because it only
-                           ;; gets generated at service runtime. Hence we're
-                           ;; passing it as an env variable.
-                           (spawn-bee* "start"))))))
+                         ;; Due to staged compilation, we cannot add the node's
+                         ;; eth address to the config bee file, because it only
+                         ;; gets generated at service runtime. Hence we're
+                         ;; passing it as an env variable.
+                         (spawn-bee* "start")))))
              (stop #~(make-kill-destructor #:grace-period 120)))))))))
 
 (define (make-swarm-shepherd-services service-config)
@@ -459,54 +466,7 @@ first command line argument."
            (make-shepherd-service/bee service-config bee-config))
          bee-configurations)))
 
-(define (swarm-service-start-gexp service-config body-gexp)
-  "Returns a GEXP that is called before the start of any of the services.  It
-means that this GEXP should only do operations that are safe to be called any
-number of times, in any random moment."
-  (match-record service-config <swarm-service-configuration>
-      (swarm unix-user unix-group)
-    (match-record swarm <swarm>
-        ((name swarm-name))
-      ;; TODO use the -foo- naming convention for the implicit bindings below?
-      ;; TODO simplify this, and maybe split into two for the actions
-      #~(let* ((swarm-name    #$swarm-name)
-               (path          #$(file-append coreutils "/bin"))
-               (bash          #$(file-append bash-minimal "/bin/bash"))
-               (tr            #$(file-append coreutils "/bin/tr"))
-               (head          #$(file-append coreutils "/bin/head"))
-               (chown-bin     #$(file-append coreutils "/bin/chown"))
-               ;; reduce/rebind the USER-ACCOUNT and USER-GROUP instances into their names
-               (unix-group    #$(user-group-name unix-group))
-               (unix-user     #$(user-account-name unix-user))
-               (unix-pw       (getpwnam unix-user))
-               (unix-user-id  (passwd:uid unix-pw))
-               (bee-group-id  (passwd:gid unix-pw))
-               (log-dir       #$(default-log-directory swarm-name)))
-
-          ;; so that we can already invoke basic commands before the fork+exec
-          (setenv "PATH" path)
-          (with-log-directory log-dir
-            ;; Log files are not visible to everyone.
-            (ensure-directories/rec unix-user unix-group #o2770
-                                    log-dir)
-
-            ;; Ensure as root that the service.log file exists, and it is
-            ;; group writable.
-            (let ((path (service-log-filename)))
-              (close-port (open-file path "a"))
-              (chmod path #o664))
-
-            (log.dribble "A SWARM-SERVICE-START-GEXP is running for swarm ~S on Guile version ~S" swarm-name (version))
-
-            (let ((dir #$(swarm-data-directory swarm-name)))
-              ;; The data dir is visible to everyone.
-              (ensure-directories 0 unix-group #o2770 dir)
-              (log.debug "Ensured directory ~S" dir))
-
-            #$body-gexp)))))
-
-;; TODO factor out? this is a stripped down version of the above.
-(define (swarm-service-action-gexp service-config body-gexp)
+(define (with-swarm-action-wrapper service-config body-gexp)
   (match-record service-config <swarm-service-configuration>
       (swarm unix-user unix-group)
     (match-record swarm <swarm>
@@ -528,6 +488,13 @@ number of times, in any random moment."
                                         #$(user-group-name unix-group)
                                         #o2770
                                         -log-dir-)
+
+                ;; Ensure as root that the service.log file exists, and it is
+                ;; group writable.
+                (let ((path (service-log-filename)))
+                  (close-port (open-file path "a"))
+                  (chmod path #o664))
+
                 #$body-gexp)))))))
 
 (define (make-swarm-user-accounts service-config)
