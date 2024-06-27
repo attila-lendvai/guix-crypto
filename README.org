@@ -83,15 +83,16 @@ mistake at compilation (e.g. by using a different version of a dependency) may
 introduce bugs into the final executable file that could result in losing money
 or worse.
 
-Ideally, these mission-critical projects would all be /reproducible
-build/, even across OS installations. Then we could have source-based
-packages in Guix proper to build them reproducibly, and then
-authenticate the resulting binaries by comparing ours to the
-officially released ones, and also verify their singatures.
+Ideally, these mission-critical projects would all be /reproducible build/, even
+across OS installations. Then we could have source-based packages in Guix proper
+to build them reproducibly, and at the end of the build we could authenticate
+the resulting binaries by comparing ours to the officially released ones, that
+are cryptographically signed by upstream.
 
 Until this ideal world is reached, this channel will serve as a home for crypto
-related Guix services and packages that download, authenticate, and then patch
-the official binary releases to run in the Guix environment.
+related Guix services, and package definitions. These package definitions
+download, authenticate and then patch the *official binary releases* so that
+they run in the Guix environment.
 
 Further readings on this topic:
 - go-ethereum [[https://github.com/ethereum/go-ethereum/issues/18292][GitHub issue]] on reproducible builds
