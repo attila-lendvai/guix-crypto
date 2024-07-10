@@ -59,65 +59,72 @@
       ;;(outputs '("out" "clef" "evm"))
       (build-system binary-build-system)
       (arguments
-       (list
-        #:imported-modules (source-module-closure
-                            `((guix-crypto utils)
-                              ,@%binary-build-system-modules)
-                            #:select? default-module-filter)
-        #:modules '((guix build utils)
-                    (guix-crypto utils)
-                    (nonguix build binary-build-system))
-        #:strip-binaries? #f            ; The less we modify, the better.
-        ;; TODO fontconfig-minimal is a guix anomaly: https://issues.guix.gnu.org/61292
-        #:patchelf-plan ''(("feather" ("gcc"
-                                       "glibc"
-                                       "fontconfig-minimal"
-                                       "libxkbcommon"
-                                       "libxcb"
-                                       "xcb-util-cursor"
-                                       "xcb-util-wm"
-                                       "xcb-util-image"
-                                       "xcb-util-keysyms"
-                                       "xcb-util-renderutil"
-                                       )))
-        #:install-plan `'(("feather" "bin/feather"))
-        #:phases
-        #~(modify-phases %standard-phases
-            (add-after 'install 'wrap-executable
-              (lambda* (#:key inputs outputs #:allow-other-keys)
-                (wrap-program (string-append #$output "/bin/feather")
-                  ;; libssl.so is an optional dependency opened using dlopen
-                  `("LD_LIBRARY_PATH" suffix
-                    (,(string-append (assoc-ref inputs "openssl") "/lib")))
-                  ;; TODO qt.qpa.plugin: Could not find the Qt platform plugin "wayland" in ""
-                  ;; qt.qpa.theme.dbus: Session DBus not running.
-                  ;; qt.qpa.theme.dbus: Application will not react to setting changes.
-                  ;; Check your DBus installation.
-                  ;; TODO binary compiled with a different version?
-                  ;;  qt.core.plugin.loader: In /gnu/store/v8irm6w6vcnlghzifssksxmvyg8fn7ih-qtbase-5.15.5/lib/qt5/plugins/platforms/libqeglfs.so:
-                  ;;  Plugin uses incompatible Qt library (5.15.0) [release]
-                  `("QT_PLUGIN_PATH" ":" prefix
-                    ,(map (lambda (label)
-                            (string-append (assoc-ref inputs label)
-                                           "/lib/qt5/plugins"))
-                          '("qtbase" "qtwayland")))
-                  `("QT_QPA_PLATFORM_PLUGIN_PATH" ":" =
-                    ,(map (lambda (label)
-                            (string-append (assoc-ref inputs label)
-                                           "/lib/qt5/plugins/platforms"))
-                          '("qtbase" "qtwayland"))))))
-            ;; TODO qt.qpa.plugin: Could not find the Qt platform plugin "offscreen" in "/gnu/store/5m7al14hrq0cmzgy8p1xqhnagdhfqv1x-qtbase-5.15.5/lib/qt5/plugins/platforms:/gnu/store/dmgv7isvff0g4pxpi6z0ry44hch0af9p-qtwayland-5.15.5/lib/qt5/plugins/platforms"
-            ;; This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
-            ;; Available platform plugins are: xcb, xcb.
-            ;; (add-after 'wrap-executable 'check
-            ;;   (lambda* (#:key (tests? #t) #:allow-other-keys)
-            ;;     (when tests?
-            ;;       (setenv "HOME" (getcwd))
-            ;;       (setenv "XDG_RUNTIME_DIR" (getcwd))
-            ;;       (setenv "QT_QPA_PLATFORM" "offscreen")
-            ;;       (invoke (string-append #$output "/bin/feather")
-            ;;               "--version"))))
-            )))
+       (let ((name-and-version (string-append "feather-" version)))
+         (list
+          #:imported-modules (source-module-closure
+                              `((guix-crypto utils)
+                                ,@%binary-build-system-modules)
+                              #:select? default-module-filter)
+          #:modules '((guix build utils)
+                      (guix-crypto utils)
+                      (nonguix build binary-build-system))
+          #:strip-binaries? #f          ; The less we modify, the better.
+          ;; TODO fontconfig-minimal is a guix anomaly: https://issues.guix.gnu.org/61292
+          #:patchelf-plan `'((,name-and-version
+                              ("gcc"
+                               "glibc"
+                               "fontconfig-minimal"
+                               "libxkbcommon"
+                               "libxcb"
+                               "xcb-util-cursor"
+                               "xcb-util-wm"
+                               "xcb-util-image"
+                               "xcb-util-keysyms"
+                               "xcb-util-renderutil"
+                               )))
+          #:install-plan `'((,name-and-version
+                             ,(string-append "bin/" name-and-version)))
+          #:phases
+          #~(modify-phases %standard-phases
+              (add-after 'install 'wrap-executable
+                (lambda* (#:key inputs #:allow-other-keys)
+                  (wrap-program (string-append #$output "/bin/" #$name-and-version)
+                    ;; libssl.so is an optional dependency opened using dlopen
+                    `("LD_LIBRARY_PATH" suffix
+                      (,(string-append (assoc-ref inputs "openssl") "/lib")))
+                    ;; TODO qt.qpa.plugin: Could not find the Qt platform plugin "wayland" in ""
+                    ;; qt.qpa.theme.dbus: Session DBus not running.
+                    ;; qt.qpa.theme.dbus: Application will not react to setting changes.
+                    ;; Check your DBus installation.
+                    `("QT_PLUGIN_PATH" ":" prefix
+                      ,(map (lambda (label)
+                              (string-append (assoc-ref inputs label)
+                                             "/lib/qt5/plugins"))
+                            '("qtbase" "qtwayland")))
+                    `("QT_QPA_PLATFORM_PLUGIN_PATH" ":" =
+                      ,(map (lambda (label)
+                              (string-append (assoc-ref inputs label)
+                                             "/lib/qt5/plugins/platforms"))
+                            '("qtbase" "qtwayland"))))))
+              (add-after 'wrap-executable 'symlink-binaries
+                (lambda* (#:key #:allow-other-keys)
+                  (let* ((source #$name-and-version)
+                         (target "feather"))
+                    (with-directory-excursion (string-append #$output "/bin/")
+                      (format #t "~A -> ~A~%" source target)
+                      (symlink source target)))))
+              ;; TODO qt.qpa.plugin: Could not find the Qt platform plugin "offscreen" in "/gnu/store/5m7al14hrq0cmzgy8p1xqhnagdhfqv1x-qtbase-5.15.5/lib/qt5/plugins/platforms:/gnu/store/dmgv7isvff0g4pxpi6z0ry44hch0af9p-qtwayland-5.15.5/lib/qt5/plugins/platforms"
+              ;; This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+              ;; Available platform plugins are: xcb, xcb.
+              ;; (add-after 'symlink-binaries 'check
+              ;;   (lambda* (#:key (tests? #t) #:allow-other-keys)
+              ;;     (when tests?
+              ;;       (setenv "HOME" (getcwd))
+              ;;       (setenv "XDG_RUNTIME_DIR" (getcwd))
+              ;;       (setenv "QT_QPA_PLATFORM" "offscreen")
+              ;;       (invoke (string-append #$output "/bin/feather")
+              ;;               "--version"))))
+              ))))
       (native-inputs (list
                       gnupg
                       patchelf
