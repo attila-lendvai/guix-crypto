@@ -43,8 +43,7 @@
       (source (origin
                 (method url-fetch)
                 (uri (bee-release-uri (current-system-as-go-system) version))
-                (sha256 (base32 (or (assoc-ref hashes (%current-system))
-                                    (unsupported-arch name (%current-system)))))))
+                (sha256 (base32 (assoc-ref hashes (%current-system))))))
       (build-system binary-build-system)
       (arguments
        `(#:install-plan `(("bee" "bin/"))
@@ -85,8 +84,7 @@ blockchain.  Bee is a Go implementation of a node in a Swarm.")
                 (method url-fetch)
                 (uri (swarm-tools/release-uri
                       (current-system-as-rust-system) version))
-                (sha256 (base32 (or (assoc-ref hashes (%current-system))
-                                    (unsupported-arch name (%current-system)))))))
+                (sha256 (base32 (assoc-ref hashes (%current-system))))))
       (build-system binary-build-system)
       (arguments
        `(#:install-plan `(("swarm-tools" "bin/"))

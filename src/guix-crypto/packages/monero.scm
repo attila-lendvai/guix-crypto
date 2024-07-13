@@ -54,9 +54,7 @@
            (method url-fetch)
            (uri uri)
            (file-name file-name)
-           (sha256 (base32 (or (assoc-ref hashes (%current-system))
-                               (unsupported-arch name (%current-system))))))))
-      ;;(outputs '("out" "clef" "evm"))
+           (sha256 (base32 (assoc-ref hashes (%current-system)))))))
       (build-system binary-build-system)
       (arguments
        (let ((name-and-version (string-append "feather-" version)))

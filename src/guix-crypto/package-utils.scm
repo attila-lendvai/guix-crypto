@@ -51,11 +51,6 @@
                                          (syntax->datum #'filename)
                                          ".hashes"))))))))
 
-(define-public (unsupported-arch package-name system)
-  (raise (formatted-message
-          (G_ "The package '~a' does not support the Guix system '~a'")
-          package-name system)))
-
 (define-public (guix-system-name->rust-system-name name)
   (match name
     ("x86_64-linux"      "x86_64-unknown-linux")
