@@ -129,7 +129,7 @@
 ;;;
 (define-public* (lighthouse-release-file-name arch version)
   (string-append "lighthouse-v" version "-" arch
-                 "-gnu-portable.tar.gz"))
+                 "-gnu.tar.gz"))
 
 (define-public* (lighthouse-release-uri arch version
                                         #:key (suffix ""))
