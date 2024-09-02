@@ -9,11 +9,11 @@ This channel is established and can be expected to get timely updates. If not,
 Pull Requests are welcome, too.
 
 For now it mostly contains binary packages and service code to install and run
-[[https://www.ethswarm.org/][Swarm]] Bee nodes, and the necessary support services (an Ethereum node, a Clef
-wallet manager, etc).
+[[https://www.ethswarm.org/][Swarm]] Bee nodes, and the necessary support services (e.g. an Ethereum node, a
+Clef wallet manager, etc).
 
 * Where
-The project's [[https://github.com/attila-lendvai/guix-crypto][github page]] is the primary communication channel.
+The project's [[https://codeberg.org/attila.lendvai/guix-crypto][Codeberg page]] is the primary communication channel.
 
 * How
 This git repository is a Guix channel that can be added to the =channels.scm=
@@ -23,7 +23,7 @@ file of your [[https://guix.gnu.org/][Guix System]] by inserting the following /
 #+BEGIN_SRC scheme
   (channel
    (name 'crypto) ; short name for nicer guix pull output
-   (url "https://github.com/attila-lendvai/guix-crypto.git")
+   (url "https://codeberg.org/attila.lendvai/guix-crypto.git")
    (branch "main")
    (introduction
     (make-channel-introduction
@@ -46,24 +46,19 @@ swarm. First, add these services to your =config.scm=:
   ...
   (services
    ...
-   (let ((gnosis-ipc-path "/var/lib/openethereum/gnosis/gnosis.ipc")
-         (gnosis-service-name 'gnosis))
-     (list
-       ;; Start 2 Bee instances, and a Clef (go-ethereum) account manager.
-       (swarm-service
-        #:node-count           2 ; new Clef accounts are created as needed
-        #:resolver-options     "[optional ethereum mainnet endpoint for ENS]"
-        #:blockchain-rpc-endpoint gnosis-ipc-path
-        #:swap-initial-deposit 0 ; start nodes without any BZZ
-        #:dependencies         (list gnosis-service-name))
-
-       ;; Start an OpenEthereum node.
-       (openethereum-service
-        #:service-name    gnosis-service-name
-        #:user            "gnosis"
-        #:group           "swarm-mainnet"
-        #:chain           "xdai"
-        #:ipc-path        gnosis-ipc-path)))))
+   (service
+    swarm-service-type
+    (swarm-service-configuration
+     (bee-configurations
+      ;; Generate configuration entries for two Bee node instances.
+      (indexed-bee-configurations
+       2
+       (bee-config-values
+        (resolver-options        "[an Ethereum mainnet endpoint]")
+        (blockchain-rpc-endpoint "https://xdai.fairdatasociety.org/")
+        (full-node               #true)
+        (swap-enable             #true)
+        (swap-initial-deposit    0))))))))
 #+END_SRC
 
 Afterwards:
@@ -92,7 +87,7 @@ are cryptographically signed by upstream.
 Until this ideal world is reached, this channel will serve as a home for crypto
 related Guix services, and package definitions. These package definitions
 download, authenticate and then patch the *official binary releases* so that
-they run in the Guix environment.
+they can run in the Guix environment.
 
 Further readings on this topic:
 - go-ethereum [[https://github.com/ethereum/go-ethereum/issues/18292][GitHub issue]] on reproducible builds
